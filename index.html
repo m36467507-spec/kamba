@@ -2,21 +2,32 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>🚗 نظام إدارة الرحلات المتطور</title>
+<title>🚗 نظام إدارة الرحلات الاحترافي</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"/>
+
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
 
 <style>
 body{
 margin:0;
 font-family:Arial;
-background:#111;
 color:white;
+background: linear-gradient(-45deg, #1a1a1a, #0f2027, #203a43, #2c5364);
+background-size: 400% 400%;
+animation: gradientBG 15s ease infinite;
+}
+
+@keyframes gradientBG {
+0% { background-position: 0% 50%; }
+50% { background-position: 100% 50%; }
+100% { background-position: 0% 50%; }
 }
 
 header{
-background:#1e1e1e;
+background:#111;
 padding:15px;
 text-align:center;
 font-size:22px;
@@ -30,21 +41,22 @@ margin:auto;
 
 #map{
 height:400px;
-border-radius:10px;
+border-radius:12px;
 margin-bottom:15px;
 }
 
 .box{
 background:#1e1e1e;
 padding:15px;
-border-radius:10px;
+border-radius:12px;
 margin-top:15px;
+box-shadow:0 0 10px rgba(0,0,0,0.5);
 }
 
 button{
-padding:8px 12px;
+padding:8px 14px;
 border:none;
-border-radius:6px;
+border-radius:8px;
 background:#4CAF50;
 color:white;
 cursor:pointer;
@@ -57,94 +69,108 @@ background:#d32f2f;
 
 input,select{
 padding:8px;
-border-radius:6px;
+border-radius:8px;
 border:none;
 margin:5px;
-}
-
-audio{
-width:100%;
-margin-top:10px;
 }
 </style>
 </head>
 <body>
 
 <header>
-🚗 نظام إدارة الرحلات  
+🚗 نظام إدارة الرحلات الاحترافي  
 <br>
 💰 إجمالي الأرباح: <span id="totalProfit">0</span> جنيه
 </header>
 
 <div class="container">
 
-<h3>🗺 اختر البداية ثم النهاية</h3>
+<h3>📍 اختر نهاية الرحلة</h3>
 <div id="map"></div>
 
 <select id="carType">
-<option value="6">🚗 صغيرة (6 لتر/100كم)</option>
-<option value="8" selected>🚙 متوسطة (8 لتر/100كم)</option>
-<option value="12">🚐 كبيرة (12 لتر/100كم)</option>
-<option value="15">🛻 نقل خفيف (15 لتر/100كم)</option>
+<option value="6">🚗 صغيرة</option>
+<option value="8" selected>🚙 متوسطة</option>
+<option value="12">🚐 كبيرة</option>
+<option value="15">🛻 نقل خفيف</option>
 </select>
 
 <input type="number" id="fuelPrice" placeholder="سعر لتر البنزين" value="12">
 <input type="number" id="customerMoney" placeholder="الزبون دفع كام؟">
 
-<button onclick="saveTrip()">➕ أضف الرحلة</button>
+<button onclick="saveTrip()">➕ حفظ الرحلة</button>
 
 <div id="tripDetails" class="box"></div>
 <div id="tripsList" class="box"></div>
-
-<div class="box">
-<h3>🎧 إذاعة القرآن الكريم</h3>
-<button onclick="playQuran()">▶ تشغيل</button>
-<button onclick="stopQuran()">⏹ إيقاف</button>
-<audio id="quranAudio"></audio>
-</div>
 
 </div>
 
 <script>
 
-// ================== الخريطة ==================
 let map = L.map('map').setView([30.0444,31.2357],7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+maxZoom:19
+}).addTo(map);
 
 let startPoint=null;
 let endPoint=null;
-let startMarker=null;
-let endMarker=null;
+let routingControl=null;
+let realDistance=0;
+let realTime=0;
 
-map.on('click', function(e){
-if(!startPoint){
-startPoint=e.latlng;
-startMarker=L.marker(startPoint).addTo(map).bindPopup("📍 البداية").openPopup();
-}else if(!endPoint){
-endPoint=e.latlng;
-endMarker=L.marker(endPoint).addTo(map).bindPopup("📍 النهاية").openPopup();
-}else{
-map.removeLayer(startMarker);
-map.removeLayer(endMarker);
-startPoint=e.latlng;
-endPoint=null;
-startMarker=L.marker(startPoint).addTo(map).bindPopup("📍 البداية").openPopup();
+// تحديد موقعك تلقائيًا
+if (navigator.geolocation) {
+navigator.geolocation.getCurrentPosition(function(position){
+
+let lat = position.coords.latitude;
+let lng = position.coords.longitude;
+
+startPoint = L.latLng(lat,lng);
+
+map.setView([lat,lng],15);
+
+L.marker([lat,lng])
+.addTo(map)
+.bindPopup("📍 موقعك الحالي")
+.openPopup();
+
+});
 }
+
+// اختيار نهاية الرحلة
+map.on('click', function(e){
+
+if(!startPoint){
+alert("انتظر تحديد موقعك");
+return;
+}
+
+endPoint = e.latlng;
+
+if(routingControl){
+map.removeControl(routingControl);
+}
+
+routingControl = L.Routing.control({
+waypoints: [
+startPoint,
+endPoint
+],
+routeWhileDragging:false,
+show:false,
+lineOptions:{
+styles:[{color:'#00ff88', weight:6}]
+}
+}).addTo(map);
+
+routingControl.on('routesfound', function(e){
+let route = e.routes[0];
+realDistance = route.summary.totalDistance / 1000;
+realTime = route.summary.totalTime / 60;
 });
 
-// ================== حساب المسافة ==================
-function calculateDistance(lat1, lon1, lat2, lon2){
-const R=6371;
-const dLat=(lat2-lat1)*Math.PI/180;
-const dLon=(lon2-lon1)*Math.PI/180;
-const a=
-Math.sin(dLat/2)**2+
-Math.cos(lat1*Math.PI/180)*
-Math.cos(lat2*Math.PI/180)*
-Math.sin(dLon/2)**2;
-const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-return R*c;
-}
+});
 
 // ================== الرحلات ==================
 let trips = JSON.parse(localStorage.getItem("trips")) || [];
@@ -159,9 +185,10 @@ let html="";
 trips.forEach((t,i)=>{
 html+=`
 <div>
-🚘 رحلة ${i+1} - ${t.carType}  
-<br>المسافة: ${t.distance.toFixed(1)} كم  
-<br>صافي: ${t.net.toFixed(2)} جنيه  
+🚘 رحلة ${i+1}  
+<br>المسافة الحقيقية: ${t.distance.toFixed(2)} كم  
+<br>الزمن المتوقع: ${t.time.toFixed(1)} دقيقة  
+<br>صافي الربح: ${t.net.toFixed(2)} جنيه  
 <br>
 <button class="deleteBtn" onclick="deleteTrip(${i})">🗑 حذف</button>
 <hr>
@@ -178,56 +205,36 @@ renderTrips();
 }
 
 function saveTrip(){
-if(!startPoint || !endPoint){
-alert("حدد النقطتين الأول");
+
+if(realDistance===0){
+alert("اختر نهاية الرحلة أولًا");
 return;
 }
 
 let customerMoney=parseFloat(document.getElementById("customerMoney").value)||0;
 let fuelPrice=parseFloat(document.getElementById("fuelPrice").value)||0;
 let consumption=parseFloat(document.getElementById("carType").value);
-let carName=document.getElementById("carType").options[document.getElementById("carType").selectedIndex].text;
 
-let distance=calculateDistance(
-startPoint.lat,startPoint.lng,
-endPoint.lat,endPoint.lng
-);
-
-let fuelUsed=(distance/100)*consumption;
+let fuelUsed=(realDistance/100)*consumption;
 let fuelCost=fuelUsed*fuelPrice;
 let net=customerMoney - fuelCost;
 
 let trip={
-distance,
-fuelCost,
-customerMoney,
-net,
-carType:carName
+distance:realDistance,
+time:realTime,
+net:net
 };
 
 trips.push(trip);
 localStorage.setItem("trips",JSON.stringify(trips));
 
 document.getElementById("tripDetails").innerHTML=
-`المسافة: ${distance.toFixed(2)} كم <br>
-نوع العربية: ${carName} <br>
-تكلفة البنزين: ${fuelCost.toFixed(2)} جنيه <br>
-الزبون دفع: ${customerMoney} جنيه <br>
-صافي الربح: ${net.toFixed(2)} جنيه`;
+`📏 المسافة الحقيقية: ${realDistance.toFixed(2)} كم <br>
+⏱ الزمن المتوقع: ${realTime.toFixed(1)} دقيقة <br>
+⛽ تكلفة البنزين: ${fuelCost.toFixed(2)} جنيه <br>
+💰 صافي الربح: ${net.toFixed(2)} جنيه`;
 
 renderTrips();
-}
-
-// ================== القرآن ==================
-function playQuran(){
-let audio=document.getElementById("quranAudio");
-audio.src="https://stream.radiojar.com/8s5u5tpdtwzuv";
-audio.play();
-}
-
-function stopQuran(){
-let audio=document.getElementById("quranAudio");
-audio.pause();
 }
 
 renderTrips();
