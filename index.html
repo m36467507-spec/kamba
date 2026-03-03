@@ -2,659 +2,200 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>مدونة رحلات السيارة - مع الخرائط</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+<title>🚗 رحلات السيارة – ديناميكية حسب الوقت</title>
+
+<!-- Leaflet خرائط -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <style>
-/* خلفية متحركة ثلاثية الأبعاد - نجوم متلألئة */
-@keyframes stars {
-    0% { opacity: 0.2; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.2); }
-    100% { opacity: 0.2; transform: scale(1); }
+/* --------- خلفية ديناميكية حسب الوقت --------- */
+body{
+    margin:0;
+    font-family:Arial;
+    color:white;
+    overflow-x:hidden;
+    min-height:100vh;
+    position:relative;
+    transition: background 2s ease;
+    background-size: cover;
 }
 
-@keyframes shooting-star {
-    0% { transform: translateX(0) translateY(0) rotate(45deg); opacity: 1; }
-    100% { transform: translateX(200px) translateY(200px) rotate(45deg); opacity: 0; }
-}
-
-@keyframes galaxy-rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-body {
-    font-family: Arial;
-    margin: 0;
-    min-height: 100vh;
-    position: relative;
-    overflow-x: hidden;
-    color: white;
-}
-
-/* طبقات الخلفية المتحركة */
-.animated-bg {
+/* السيارة المتحركة */
+#car {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
-    background: linear-gradient(125deg, #0a0f1e, #0f1a2f, #1a1f35, #0b0f1a);
-    background-size: 400% 400%;
-    animation: gradientBG 15s ease infinite;
+    bottom: 20px;
+    left: -150px;
+    width: 150px;
+    transition: left 10s linear;
 }
 
-@keyframes gradientBG {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-
-/* النجوم الثابتة */
-.stars, .twinkling-stars, .clouds {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
-}
-
-.stars {
-    background: #000 url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1IiBoZWlnaHQ9IjUiPjxjaXJjbGUgY3g9IjIuNSIgY3k9IjIuNSIgcj0iMSIgZmlsbD0id2hpdGUiIC8+PC9zdmc+') repeat;
-    opacity: 0.5;
-    animation: starsMove 50s linear infinite;
-}
-
-.twinkling-stars {
-    background: transparent url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCI+PGNpcmNsZSBjeD0iNSIgY3k9IjUiIHI9IjIiIGZpbGw9IndoaXRlIiBvcGFjaXR5PSIwLjgiIC8+PC9zdmc+') repeat;
-    opacity: 0.3;
-    animation: twinkling 4s ease-in-out infinite;
-}
-
-@keyframes starsMove {
-    from { transform: translateY(0); }
-    to { transform: translateY(-1000px); }
-}
-
-@keyframes twinkling {
-    0% { opacity: 0.2; }
-    50% { opacity: 0.8; }
-    100% { opacity: 0.2; }
-}
-
-/* نجوم متحركة فردية */
-.star {
-    position: fixed;
-    color: white;
-    font-size: 3px;
-    z-index: -1;
-    animation: float 6s ease-in-out infinite;
-}
-
-@keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-20px); }
-    100% { transform: translateY(0px); }
-}
-
-/* تأثير سديم متحرك */
-.nebula {
-    position: fixed;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle at 30% 50%, rgba(76, 0, 255, 0.2), transparent 70%);
-    border-radius: 50%;
-    filter: blur(50px);
-    z-index: -1;
-    animation: moveNebula 20s infinite alternate;
-}
-
-.nebula2 {
-    position: fixed;
-    width: 400px;
-    height: 400px;
-    background: radial-gradient(circle at 70% 30%, rgba(255, 0, 128, 0.15), transparent 70%);
-    border-radius: 50%;
-    filter: blur(60px);
-    z-index: -1;
-    animation: moveNebula2 25s infinite alternate;
-}
-
-@keyframes moveNebula {
-    0% { top: -100px; left: -100px; }
-    100% { top: 70%; left: 80%; }
-}
-
-@keyframes moveNebula2 {
-    0% { bottom: -100px; right: -100px; }
-    100% { bottom: 60%; right: 70%; }
-}
-
-/* المحتوى الرئيسي */
-header {
-    background: rgba(30, 30, 30, 0.9);
-    backdrop-filter: blur(10px);
-    padding: 20px;
-    font-size: 24px;
-    position: relative;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 4px 30px rgba(0,0,0,0.3);
-    z-index: 1000;
-}
-
-.audio-control {
-    position: absolute;
-    left: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-}
-.audio-btn {
-    background: rgba(76, 175, 80, 0.8);
+/* ترويسة */
+header{
+    background: rgba(0,0,0,0.6);
+    padding:20px;
+    font-size:24px;
+    text-align:center;
+    text-shadow:0 0 10px rgba(0,0,0,0.7);
     backdrop-filter: blur(5px);
-    color: white;
-    border: 1px solid rgba(255,255,255,0.2);
-    padding: 10px 20px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: all 0.3s;
-}
-.audio-btn:hover {
-    background: rgba(76, 175, 80, 1);
-    transform: scale(1.05);
-}
-.audio-btn.playing {
-    background: rgba(244, 67, 54, 0.8);
-}
-.audio-btn.playing::after {
-    content: " 🔴";
-}
-.audio-btn::after {
-    content: " 🎵";
 }
 
-.container {
-    padding: 20px;
-    max-width: 1400px;
-    margin: 0 auto;
+/* الحاوية */
+.container{
+    padding:20px;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(5px);
+    border-radius:15px;
+    margin:20px auto;
+    max-width:800px;
 }
 
-/* تنسيق الخريطة */
-.map-section {
+/* مدخلات ونصوص */
+input,button{
+    padding:12px;
+    margin:5px;
+    border-radius:8px;
+    border:none;
+    font-size:16px;
+}
+input{width:250px;}
+button{background:#4CAF50;color:#fff;cursor:pointer;transition:0.3s;}
+button:hover{background:#45a049;}
+
+/* خريطة */
+.map-container{
+    width:100%;
+    height:300px;
+    margin:15px 0;
+    border-radius:10px;
+    overflow:hidden;
+    border:2px solid #4CAF50;
+}
+
+/* الرحلات */
+.trip{
     background: rgba(0,0,0,0.5);
-    backdrop-filter: blur(10px);
-    border-radius: 20px;
-    padding: 20px;
-    margin-bottom: 30px;
-    border: 1px solid rgba(255,255,255,0.1);
-}
-
-.map-title {
-    text-align: right;
-    margin-bottom: 20px;
-    font-size: 22px;
-    color: #4CAF50;
-    text-shadow: 0 0 10px rgba(76,175,80,0.3);
-}
-
-#map {
-    height: 500px;
-    width: 100%;
-    border-radius: 15px;
-    border: 2px solid rgba(255,255,255,0.1);
-    margin-bottom: 20px;
-    z-index: 1;
-}
-
-.location-inputs {
-    display: flex;
-    gap: 20px;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin-bottom: 20px;
-}
-
-.location-input {
-    flex: 1;
-    min-width: 250px;
-    background: rgba(255,255,255,0.1);
-    backdrop-filter: blur(5px);
-    border-radius: 10px;
-    padding: 15px;
-    border: 1px solid rgba(255,255,255,0.1);
-}
-
-.location-input label {
-    display: block;
-    margin-bottom: 10px;
-    color: #4CAF50;
-    font-size: 16px;
-}
-
-.location-input input {
-    width: 90%;
-    padding: 12px;
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.2);
-    color: white;
-    border-radius: 8px;
-    font-size: 14px;
-}
-
-.location-input input:focus {
-    outline: none;
-    border-color: #4CAF50;
-    box-shadow: 0 0 15px rgba(76,175,80,0.3);
-}
-
-.route-info {
-    background: rgba(76,175,80,0.1);
-    border-radius: 10px;
-    padding: 15px;
-    margin-top: 20px;
-    text-align: center;
-    border: 1px solid rgba(76,175,80,0.3);
-}
-
-.route-info p {
-    margin: 10px 0;
-    font-size: 18px;
-}
-
-.route-info .distance {
-    font-size: 24px;
-    color: #4CAF50;
-    font-weight: bold;
-}
-
-.route-info .time {
-    font-size: 20px;
-    color: #ffd700;
-}
-
-.get-location-btn {
-    background: rgba(33, 150, 243, 0.8);
-    color: white;
-    border: none;
-    padding: 12px 25px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: all 0.3s;
-    margin: 10px;
-}
-
-.get-location-btn:hover {
-    background: rgba(33, 150, 243, 1);
-    transform: scale(1.05);
-}
-
-/* تنسيق الرحلات */
-.trips-section {
-    background: rgba(0,0,0,0.5);
-    backdrop-filter: blur(10px);
-    border-radius: 20px;
-    padding: 20px;
-    border: 1px solid rgba(255,255,255,0.1);
-}
-
-input, button {
-    padding: 12px;
-    margin: 5px;
-    border: none;
-    border-radius: 8px;
-}
-
-input {
-    background: rgba(255,255,255,0.1);
-    color: white;
-    border: 1px solid rgba(255,255,255,0.2);
-    width: 250px;
-}
-
-button {
-    background: linear-gradient(45deg, #4CAF50, #45a049);
-    color: white;
-    cursor: pointer;
-    transition: all 0.3s;
-    font-weight: bold;
-}
-
-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 20px rgba(76, 175, 80, 0.4);
-}
-
-.result {
-    margin: 20px 0;
-    font-size: 24px;
-    padding: 20px;
-    background: rgba(0,0,0,0.3);
-    border-radius: 10px;
-}
-
-.trip {
-    background: rgba(34, 34, 34, 0.7);
-    backdrop-filter: blur(5px);
-    margin: 15px 0;
-    padding: 20px;
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.1);
-    transition: all 0.3s;
-    text-align: right;
-}
-
-.trip:hover {
-    transform: translateX(-5px);
-    border-color: #4CAF50;
-}
-
-/* تذييل الصفحة */
-.leaflet-control-attribution {
-    display: none;
+    padding:15px;
+    margin:10px 0;
+    border-radius:8px;
+    box-shadow:0 4px 20px rgba(0,0,0,0.5);
 }
 </style>
 </head>
 <body>
 
-<!-- طبقات الخلفية المتحركة -->
-<div class="animated-bg"></div>
-<div class="stars"></div>
-<div class="twinkling-stars"></div>
-<div class="nebula"></div>
-<div class="nebula2"></div>
-
-<header>
-🚗 مدونة رحلات السيارة
-<div class="audio-control">
-    <button id="audioToggleBtn" class="audio-btn playing" onclick="toggleAudio()">تشغيل القرآن</button>
-</div>
-</header>
+<header>🚗 رحلات السيارة – ديناميكية حسب الوقت</header>
 
 <div class="container">
 
-    <!-- قسم الخريطة -->
-    <div class="map-section">
-        <div class="map-title">🗺️ الخريطة التفاعلية - حدد وجهتك</div>
-        
-        <!-- الخريطة -->
-        <div id="map"></div>
-        
-        <!-- إدخال المواقع -->
-        <div class="location-inputs">
-            <div class="location-input">
-                <label>📍 موقعي الحالي</label>
-                <input type="text" id="startLocation" placeholder="ادخل عنوان البداية أو اختر من الخريطة" value="القاهرة">
-                <button class="get-location-btn" onclick="getCurrentLocation()">📍 تحديد موقعي الحالي</button>
-            </div>
-            
-            <div class="location-input">
-                <label>🎯 الوجهة</label>
-                <input type="text" id="endLocation" placeholder="ادخل عنوان الوجهة" value="الإسكندرية">
-                <button class="get-location-btn" onclick="searchDestination()">🔍 بحث عن الوجهة</button>
-            </div>
-        </div>
-        
-        <!-- معلومات المسار -->
-        <div class="route-info" id="routeInfo">
-            <p>المسافة: <span class="distance" id="distance">--</span> كم</p>
-            <p>الوقت المقدر: <span class="time" id="time">--</span> دقيقة</p>
-            <p>🚗 استهلاك البنزين التقريبي: <span id="fuelEstimate">--</span> لتر</p>
-            <p>💰 تكلفة البنزين: <span id="fuelCost">--</span> جنيه</p>
-        </div>
-    </div>
+<h2>📍 بيانات الرحلة</h2>
+<input type="text" id="startPoint" placeholder="نقطة الانطلاق (مثال: القاهرة)" /><br>
+<input type="text" id="endPoint" placeholder="نقطة الوصول (مثال: الإسكندرية)" /><br>
+<input type="number" id="tripPrice" placeholder="سعر الرحلة بالجنيه" /><br>
+<input type="number" id="fuelCost" placeholder="مصاريف البنزين" /><br>
+<input type="number" id="carExpenses" placeholder="مصاريف أخرى" /><br>
+<button onclick="planTrip()">📍 خطط الرحلة الآن</button>
 
-    <!-- قسم إضافة الرحلات -->
-    <div class="trips-section">
-        <h2>➕ إضافة رحلة جديدة</h2>
+<div id="tripInfo"></div>
 
-        <input type="text" id="tripName" placeholder="اسم الرحلة"><br>
-        <input type="number" id="tripPrice" placeholder="سعر الرحلة"><br>
-        <input type="number" id="fuelCostInput" placeholder="مصاريف البنزين / الغاز"><br>
-        <input type="number" id="carExpenses" placeholder="مصاريف أخرى للسيارة"><br>
-
-        <button onclick="addTrip()">✨ حساب وإضافة الرحلة</button>
-        <button onclick="addCurrentRouteAsTrip()" style="background: linear-gradient(45deg, #2196F3, #1976D2);">🛣️ إضافة المسار الحالي كرحلة</button>
-
-        <div class="result" id="totalProfit"></div>
-
-        <h2>📋 الرحلات المسجلة</h2>
-        <div id="trips"></div>
-    </div>
-
-</div>
-
-<!-- تشغيل صوت القرآن -->
-<audio id="quranAudio" loop>
-  <source src="quran.mp3" type="audio/mpeg">
-</audio>
+<!-- صورة سيارة متحركة -->
+<img src="https://images.unsplash.com/photo-1602524817360-0b1f3120f927?auto=format&fit=crop&w=600&q=80" id="car" />
 
 <script>
-let trips = [];
-let totalNet = 0;
-let audio = document.getElementById('quranAudio');
-let audioBtn = document.getElementById('audioToggleBtn');
-let map, routingControl;
-let currentStart = [30.0444, 31.2357]; // القاهرة افتراضياً
-let currentEnd = [31.2001, 29.9187];    // الإسكندرية افتراضياً
+// ======================= بيانات رادارات وإشارات المرور =======================
+const radars = [
+    [30.013056,31.208853], 
+    [31.200092,29.918739]  
+];
+const trafficLights = [
+    [30.044420,31.235712], 
+    [31.215640,29.955270]  
+];
 
-// تهيئة الخريطة
-window.onload = function() {
-    // تهيئة الخريطة
-    map = L.map('map').setView([30.0444, 31.2357], 8);
-    
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap'
-    }).addTo(map);
-    
-    // إنشاء المسار الأول
-    updateRoute();
-    
-    // تحميل الرحلات
-    const savedTrips = localStorage.getItem("trips");
-    if (savedTrips) {
-        trips = JSON.parse(savedTrips);
-        trips.forEach(trip => displayTrip(trip));
-        totalNet = trips.reduce((sum, t) => sum + t.net, 0);
-        updateTotalProfit();
-    }
-    
-    // محاولة تشغيل الصوت
-    audio.play().catch(() => {
-        audioBtn.classList.remove('playing');
-    });
-};
-
-// تحديث المسار على الخريطة
-function updateRoute() {
-    if (routingControl) {
-        map.removeControl(routingControl);
-    }
-    
-    routingControl = L.Routing.control({
-        waypoints: [
-            L.latLng(currentStart[0], currentStart[1]),
-            L.latLng(currentEnd[0], currentEnd[1])
-        ],
-        language: 'ar',
-        routeWhileDragging: true,
-        showAlternatives: true,
-        lineOptions: {
-            styles: [{color: '#4CAF50', opacity: 0.8, weight: 6}]
-        },
-        router: L.Routing.osrmv1({
-            serviceUrl: 'https://router.project-osrm.org/route/v1'
-        })
-    }).addTo(map);
-    
-    routingControl.on('routesfound', function(e) {
-        let routes = e.routes;
-        let summary = routes[0].summary;
-        
-        // تحديث معلومات المسار
-        document.getElementById('distance').textContent = (summary.totalDistance / 1000).toFixed(1);
-        document.getElementById('time').textContent = Math.round(summary.totalTime / 60);
-        
-        // حساب استهلاك البنزين (معدل 8 لتر لكل 100 كم)
-        let distance = summary.totalDistance / 1000;
-        let fuelEstimate = (distance * 8 / 100).toFixed(1);
-        let fuelCost = (fuelEstimate * 20).toFixed(0); // افترض سعر اللتر 20 جنيه
-        
-        document.getElementById('fuelEstimate').textContent = fuelEstimate;
-        document.getElementById('fuelCost').textContent = fuelCost;
-    });
-}
-
-// الحصول على الموقع الحالي
-function getCurrentLocation() {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(function(position) {
-            currentStart = [position.coords.latitude, position.coords.longitude];
-            
-            // إضافة علامة للموقع
-            L.marker(currentStart).addTo(map)
-                .bindPopup('📍 موقعك الحالي')
-                .openPopup();
-            
-            map.setView(currentStart, 12);
-            updateRoute();
-            
-            // الحصول على اسم الشارع (عكسي)
-            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${currentStart[0]}&lon=${currentStart[1]}`)
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('startLocation').value = data.display_name || 'موقع غير معروف';
-                });
-        });
-    } else {
-        alert("المتصفح لا يدعم تحديد الموقع");
+// ======================= الطقس =======================
+async function fetchWeather(lat,lng) {
+    try {
+        let res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`);
+        let data = await res.json();
+        return data.current_weather.temperature + "°C";
+    } catch {
+        return "غير متوفر";
     }
 }
 
-// البحث عن وجهة
-function searchDestination() {
-    let destination = document.getElementById('endLocation').value;
-    
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${destination}&limit=1`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.length > 0) {
-                currentEnd = [data[0].lat, data[0].lon];
-                
-                L.marker(currentEnd).addTo(map)
-                    .bindPopup(`🎯 ${destination}`)
-                    .openPopup();
-                
-                updateRoute();
-            } else {
-                alert("لم يتم العثور على الموقع");
-            }
-        });
-}
-
-// إضافة المسار الحالي كرحلة
-function addCurrentRouteAsTrip() {
-    let name = document.getElementById('startLocation').value + " → " + document.getElementById('endLocation').value;
-    let distance = parseFloat(document.getElementById('distance').textContent) || 0;
-    let fuelCost = parseFloat(document.getElementById('fuelCost').textContent) || 0;
-    
-    document.getElementById('tripName').value = name;
-    document.getElementById('fuelCostInput').value = fuelCost;
-    
-    // تمرير للأسفل لإكمال البيانات
-    window.scrollTo({
-        top: document.querySelector('.trips-section').offsetTop,
-        behavior: 'smooth'
-    });
-}
-
-// دوال إدارة الرحلات
-function addTrip() {
-    let name = document.getElementById("tripName").value;
-    let price = parseFloat(document.getElementById("tripPrice").value) || 0;
-    let fuel = parseFloat(document.getElementById("fuelCostInput").value) || 0;
-    let expenses = parseFloat(document.getElementById("carExpenses").value) || 0;
-
+// ======================= رسم الخريطة والمسار =======================
+async function planTrip() {
+    let startText = document.getElementById("startPoint").value;
+    let endText = document.getElementById("endPoint").value;
+    let price = parseFloat(document.getElementById("tripPrice").value)||0;
+    let fuel = parseFloat(document.getElementById("fuelCost").value)||0;
+    let expenses = parseFloat(document.getElementById("carExpenses").value)||0;
     let net = price - (fuel + expenses);
-    totalNet += net;
 
-    // إضافة معلومات المسافة من الخريطة
-    let distance = parseFloat(document.getElementById('distance').textContent) || 0;
-    
-    let trip = { 
-        name, 
-        price, 
-        fuel, 
-        expenses, 
-        net,
-        distance,
-        startLocation: document.getElementById('startLocation').value,
-        endLocation: document.getElementById('endLocation').value
-    };
-    
-    trips.push(trip);
-    localStorage.setItem("trips", JSON.stringify(trips));
-    displayTrip(trip);
-    updateTotalProfit();
+    let startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startText)}`);
+    let endRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endText)}`);
+    let startData = await startRes.json();
+    let endData = await endRes.json();
+    if(!startData[0] || !endData[0]) { alert("لم يتم العثور على الموقع"); return; }
 
-    // مسح الحقول
-    document.getElementById("tripName").value = "";
-    document.getElementById("tripPrice").value = "";
-    document.getElementById("fuelCostInput").value = "";
-    document.getElementById("carExpenses").value = "";
-}
+    let startLat = parseFloat(startData[0].lat);
+    let startLng = parseFloat(startData[0].lon);
+    let endLat = parseFloat(endData[0].lat);
+    let endLng = parseFloat(endData[0].lon);
 
-function displayTrip(trip) {
-    let tripDiv = document.createElement("div");
-    tripDiv.className = "trip";
-    tripDiv.innerHTML = `
-        <strong>${trip.name}</strong><br>
-        📍 من: ${trip.startLocation || 'غير محدد'}<br>
-        🎯 إلى: ${trip.endLocation || 'غير محدد'}<br>
-        📏 المسافة: ${trip.distance || 0} كم<br>
-        💰 سعر الرحلة: ${trip.price} جنيه<br>
-        ⛽ مصاريف البنزين: ${trip.fuel} جنيه<br>
-        🔧 مصاريف أخرى: ${trip.expenses} جنيه<br>
-        💵 صافي الربح: ${trip.net} جنيه
+    document.getElementById("tripInfo").innerHTML = `
+        <div class="trip">
+        <strong>🚘 من: </strong>${startText} → <strong>إلى: </strong>${endText}<br>
+        سعر الرحلة: ${price} جنيه<br>
+        مصاريف الوقود: ${fuel} جنيه<br>
+        مصاريف أخرى: ${expenses} جنيه<br>
+        <strong>صافي الربح: ${net} جنيه</strong><br><br>
+        <div class="map-container" id="tripMap"></div>
+        <div>🌡️ درجة الحرارة في نقطة الانطلاق: <span id="wStart">...</span></div>
+        <div>🌡️ درجة الحرارة في نقطة الوصول: <span id="wEnd">...</span></div>
+        </div>
     `;
-    document.getElementById("trips").prepend(tripDiv);
+
+    let map = L.map('tripMap').setView([ (startLat+endLat)/2, (startLng+endLng)/2 ], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+    L.marker([startLat,startLng]).addTo(map).bindPopup("📍 نقطة الانطلاق: "+startText).openPopup();
+    L.marker([endLat,endLng]).addTo(map).bindPopup("📍 نقطة الوصول: "+endText);
+    L.polyline([[startLat,startLng],[endLat,endLng]], {color:'#4CAF50', weight:4}).addTo(map);
+
+    trafficLights.forEach(pos=> {
+        L.marker(pos,{icon:L.icon({iconUrl:"https://img.icons8.com/color/48/000000/traffic-light.png",iconSize:[30,30]})})
+        .addTo(map).bindPopup("🚦 إشارة مرور");
+    });
+    radars.forEach(pos=> {
+        L.marker(pos,{icon:L.icon({iconUrl:"https://img.icons8.com/color/48/000000/speed-camera.png",iconSize:[30,30]})})
+        .addTo(map).bindPopup("📸 رادار سرعة");
+    });
+
+    document.getElementById("wStart").innerText = await fetchWeather(startLat,startLng);
+    document.getElementById("wEnd").innerText = await fetchWeather(endLat,endLng);
+
+    // تحريك السيارة
+    let car = document.getElementById("car");
+    car.style.left = "100%"; 
 }
 
-function updateTotalProfit() {
-    document.getElementById("totalProfit").innerHTML =
-        "💰 إجمالي صافي الأرباح: " + totalNet + " جنيه";
-}
-
-function toggleAudio() {
-    if (audio.paused) {
-        audio.play();
-        audioBtn.classList.add('playing');
+// ======================= تغيير الخلفية حسب الوقت =======================
+function updateBackground() {
+    let hour = new Date().getHours();
+    if(hour >= 6 && hour < 17) {
+        // نهار
+        document.body.style.backgroundImage = "url('https://images.unsplash.com/photo-1504198453319-5ce911bafcde?auto=format&fit=crop&w=1350&q=80')";
+    } else if(hour >= 17 && hour < 19) {
+        // غروب
+        document.body.style.backgroundImage = "url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1350&q=80')";
     } else {
-        audio.pause();
-        audioBtn.classList.remove('playing');
+        // ليل
+        document.body.style.backgroundImage = "url('https://images.unsplash.com/photo-1519682577862-22b62b24e493?auto=format&fit=crop&w=1350&q=80')";
     }
 }
+updateBackground();
+setInterval(updateBackground, 60000); // تحديث كل دقيقة
 
-// نجوم متحركة إضافية
-function createFloatingStars() {
-    for (let i = 0; i < 50; i++) {
-        let star = document.createElement('div');
-        star.className = 'star';
-        star.style.left = Math.random() * 100 + '%';
-        star.style.top = Math.random() * 100 + '%';
-        star.style.animationDelay = Math.random() * 5 + 's';
-        star.style.fontSize = Math.random() * 5 + 2 + 'px';
-        star.innerHTML = '✦';
-        document.body.appendChild(star);
-    }
-}
-
-createFloatingStars();
 </script>
-
 </body>
 </html>
