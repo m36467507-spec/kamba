@@ -2,199 +2,227 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>🚗 رحلات السيارة – ديناميكية حسب الوقت</title>
+<title>🚗 رحلات السيارة الذكية</title>
 
-<!-- Leaflet خرائط -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <style>
-/* --------- خلفية ديناميكية حسب الوقت --------- */
 body{
     margin:0;
     font-family:Arial;
     color:white;
-    overflow-x:hidden;
     min-height:100vh;
-    position:relative;
-    transition: background 2s ease;
-    background-size: cover;
+    background-size:cover;
+    transition:2s;
 }
-
-/* السيارة المتحركة */
-#car {
-    position: fixed;
-    bottom: 20px;
-    left: -150px;
-    width: 150px;
-    transition: left 10s linear;
-}
-
-/* ترويسة */
 header{
-    background: rgba(0,0,0,0.6);
+    background:rgba(0,0,0,0.6);
     padding:20px;
     font-size:24px;
     text-align:center;
-    text-shadow:0 0 10px rgba(0,0,0,0.7);
-    backdrop-filter: blur(5px);
 }
-
-/* الحاوية */
 .container{
     padding:20px;
-    background: rgba(0,0,0,0.4);
-    backdrop-filter: blur(5px);
+    background:rgba(0,0,0,0.5);
     border-radius:15px;
     margin:20px auto;
-    max-width:800px;
+    max-width:900px;
 }
-
-/* مدخلات ونصوص */
-input,button{
-    padding:12px;
+input,button,select{
+    padding:10px;
     margin:5px;
     border-radius:8px;
     border:none;
-    font-size:16px;
 }
-input{width:250px;}
-button{background:#4CAF50;color:#fff;cursor:pointer;transition:0.3s;}
-button:hover{background:#45a049;}
-
-/* خريطة */
+button{
+    background:#4CAF50;
+    color:white;
+    cursor:pointer;
+}
 .map-container{
-    width:100%;
     height:300px;
     margin:15px 0;
     border-radius:10px;
     overflow:hidden;
-    border:2px solid #4CAF50;
 }
-
-/* الرحلات */
 .trip{
-    background: rgba(0,0,0,0.5);
+    background:rgba(0,0,0,0.6);
     padding:15px;
-    margin:10px 0;
-    border-radius:8px;
-    box-shadow:0 4px 20px rgba(0,0,0,0.5);
+    border-radius:10px;
+}
+.quran-player{
+    background:rgba(0,0,0,0.7);
+    padding:15px;
+    margin-top:20px;
+    border-radius:10px;
+    text-align:center;
+}
+#car{
+    position:fixed;
+    bottom:20px;
+    left:-150px;
+    width:120px;
+    transition:10s linear;
 }
 </style>
 </head>
 <body>
 
-<header>🚗 رحلات السيارة – ديناميكية حسب الوقت</header>
+<header>🚗 رحلات السيارة الذكية + مشغل قرآن</header>
 
 <div class="container">
 
-<h2>📍 بيانات الرحلة</h2>
-<input type="text" id="startPoint" placeholder="نقطة الانطلاق (مثال: القاهرة)" /><br>
-<input type="text" id="endPoint" placeholder="نقطة الوصول (مثال: الإسكندرية)" /><br>
-<input type="number" id="tripPrice" placeholder="سعر الرحلة بالجنيه" /><br>
-<input type="number" id="fuelCost" placeholder="مصاريف البنزين" /><br>
-<input type="number" id="carExpenses" placeholder="مصاريف أخرى" /><br>
-<button onclick="planTrip()">📍 خطط الرحلة الآن</button>
+<h3>📍 بيانات الرحلة</h3>
+
+<button onclick="getMyLocation()">📍 استخدم موقعي الحالي</button><br>
+
+<input type="text" id="startPoint" placeholder="نقطة الانطلاق">
+<input type="text" id="endPoint" placeholder="نقطة الوصول"><br>
+
+<input type="number" id="tripPrice" placeholder="سعر الرحلة">
+
+<button onclick="planTrip()">🚀 خطط الرحلة</button>
 
 <div id="tripInfo"></div>
 
-<!-- صورة سيارة متحركة -->
-<img src="https://images.unsplash.com/photo-1602524817360-0b1f3120f927?auto=format&fit=crop&w=600&q=80" id="car" />
+<!-- مشغل القرآن -->
+<div class="quran-player">
+<h3>🎧 استمع إلى القرآن الكريم</h3>
+
+<select id="surahSelect">
+<option value="001.mp3">سورة الفاتحة</option>
+<option value="002.mp3">سورة البقرة</option>
+<option value="036.mp3">سورة يس</option>
+<option value="055.mp3">سورة الرحمن</option>
+<option value="067.mp3">سورة الملك</option>
+</select>
+
+<br>
+
+<button onclick="playQuran()">▶ تشغيل</button>
+<button onclick="stopQuran()">⏹ إيقاف</button>
+
+<br><br>
+
+<audio id="quranAudio" controls style="width:100%"></audio>
+
+</div>
+
+</div>
+
+<img src="https://images.unsplash.com/photo-1602524817360-0b1f3120f927?auto=format&fit=crop&w=600&q=80" id="car">
 
 <script>
-// ======================= بيانات رادارات وإشارات المرور =======================
-const radars = [
-    [30.013056,31.208853], 
-    [31.200092,29.918739]  
-];
-const trafficLights = [
-    [30.044420,31.235712], 
-    [31.215640,29.955270]  
-];
 
-// ======================= الطقس =======================
-async function fetchWeather(lat,lng) {
-    try {
-        let res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`);
-        let data = await res.json();
-        return data.current_weather.temperature + "°C";
-    } catch {
-        return "غير متوفر";
-    }
+let myLat=null,myLng=null;
+
+function getMyLocation(){
+if(navigator.geolocation){
+navigator.geolocation.getCurrentPosition(pos=>{
+myLat=pos.coords.latitude;
+myLng=pos.coords.longitude;
+alert("تم تحديد موقعك ✅");
+});
+}
 }
 
-// ======================= رسم الخريطة والمسار =======================
-async function planTrip() {
-    let startText = document.getElementById("startPoint").value;
-    let endText = document.getElementById("endPoint").value;
-    let price = parseFloat(document.getElementById("tripPrice").value)||0;
-    let fuel = parseFloat(document.getElementById("fuelCost").value)||0;
-    let expenses = parseFloat(document.getElementById("carExpenses").value)||0;
-    let net = price - (fuel + expenses);
-
-    let startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startText)}`);
-    let endRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endText)}`);
-    let startData = await startRes.json();
-    let endData = await endRes.json();
-    if(!startData[0] || !endData[0]) { alert("لم يتم العثور على الموقع"); return; }
-
-    let startLat = parseFloat(startData[0].lat);
-    let startLng = parseFloat(startData[0].lon);
-    let endLat = parseFloat(endData[0].lat);
-    let endLng = parseFloat(endData[0].lon);
-
-    document.getElementById("tripInfo").innerHTML = `
-        <div class="trip">
-        <strong>🚘 من: </strong>${startText} → <strong>إلى: </strong>${endText}<br>
-        سعر الرحلة: ${price} جنيه<br>
-        مصاريف الوقود: ${fuel} جنيه<br>
-        مصاريف أخرى: ${expenses} جنيه<br>
-        <strong>صافي الربح: ${net} جنيه</strong><br><br>
-        <div class="map-container" id="tripMap"></div>
-        <div>🌡️ درجة الحرارة في نقطة الانطلاق: <span id="wStart">...</span></div>
-        <div>🌡️ درجة الحرارة في نقطة الوصول: <span id="wEnd">...</span></div>
-        </div>
-    `;
-
-    let map = L.map('tripMap').setView([ (startLat+endLat)/2, (startLng+endLng)/2 ], 7);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-    L.marker([startLat,startLng]).addTo(map).bindPopup("📍 نقطة الانطلاق: "+startText).openPopup();
-    L.marker([endLat,endLng]).addTo(map).bindPopup("📍 نقطة الوصول: "+endText);
-    L.polyline([[startLat,startLng],[endLat,endLng]], {color:'#4CAF50', weight:4}).addTo(map);
-
-    trafficLights.forEach(pos=> {
-        L.marker(pos,{icon:L.icon({iconUrl:"https://img.icons8.com/color/48/000000/traffic-light.png",iconSize:[30,30]})})
-        .addTo(map).bindPopup("🚦 إشارة مرور");
-    });
-    radars.forEach(pos=> {
-        L.marker(pos,{icon:L.icon({iconUrl:"https://img.icons8.com/color/48/000000/speed-camera.png",iconSize:[30,30]})})
-        .addTo(map).bindPopup("📸 رادار سرعة");
-    });
-
-    document.getElementById("wStart").innerText = await fetchWeather(startLat,startLng);
-    document.getElementById("wEnd").innerText = await fetchWeather(endLat,endLng);
-
-    // تحريك السيارة
-    let car = document.getElementById("car");
-    car.style.left = "100%"; 
+function calculateDistance(lat1, lon1, lat2, lon2){
+const R=6371;
+const dLat=(lat2-lat1)*Math.PI/180;
+const dLon=(lon2-lon1)*Math.PI/180;
+const a=
+Math.sin(dLat/2)**2+
+Math.cos(lat1*Math.PI/180)*
+Math.cos(lat2*Math.PI/180)*
+Math.sin(dLon/2)**2;
+const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+return R*c;
 }
 
-// ======================= تغيير الخلفية حسب الوقت =======================
-function updateBackground() {
-    let hour = new Date().getHours();
-    if(hour >= 6 && hour < 17) {
-        // نهار
-        document.body.style.backgroundImage = "url('https://images.unsplash.com/photo-1504198453319-5ce911bafcde?auto=format&fit=crop&w=1350&q=80')";
-    } else if(hour >= 17 && hour < 19) {
-        // غروب
-        document.body.style.backgroundImage = "url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1350&q=80')";
-    } else {
-        // ليل
-        document.body.style.backgroundImage = "url('https://images.unsplash.com/photo-1519682577862-22b62b24e493?auto=format&fit=crop&w=1350&q=80')";
-    }
+async function planTrip(){
+
+let price=parseFloat(document.getElementById("tripPrice").value)||0;
+
+let startLat,startLng;
+
+if(myLat && myLng){
+startLat=myLat;
+startLng=myLng;
+}else{
+let startText=document.getElementById("startPoint").value;
+let res=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startText)}`);
+let data=await res.json();
+if(!data[0]) return alert("لم يتم العثور على الموقع");
+startLat=parseFloat(data[0].lat);
+startLng=parseFloat(data[0].lon);
+}
+
+let endText=document.getElementById("endPoint").value;
+let endRes=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endText)}`);
+let endData=await endRes.json();
+if(!endData[0]) return alert("لم يتم العثور على الموقع");
+
+let endLat=parseFloat(endData[0].lat);
+let endLng=parseFloat(endData[0].lon);
+
+let distance=calculateDistance(startLat,startLng,endLat,endLng);
+
+let fuelUsed=(distance/100)*8;
+let fuelCost=fuelUsed*12;
+
+let avgSpeed=80;
+let time=distance/avgSpeed;
+let h=Math.floor(time);
+let m=Math.round((time-h)*60);
+
+let net=price-fuelCost;
+
+document.getElementById("tripInfo").innerHTML=`
+<div class="trip">
+المسافة: ${distance.toFixed(2)} كم <br>
+استهلاك البنزين: ${fuelUsed.toFixed(2)} لتر <br>
+تكلفة البنزين: ${fuelCost.toFixed(2)} جنيه <br>
+الوقت المتوقع: ${h} ساعة و ${m} دقيقة <br>
+صافي الربح: ${net.toFixed(2)} جنيه
+<div class="map-container" id="tripMap"></div>
+</div>
+`;
+
+let map=L.map('tripMap').setView([(startLat+endLat)/2,(startLng+endLng)/2],7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+L.marker([startLat,startLng]).addTo(map);
+L.marker([endLat,endLng]).addTo(map);
+L.polyline([[startLat,startLng],[endLat,endLng]],{color:'green'}).addTo(map);
+
+document.getElementById("car").style.left="100%";
+}
+
+function playQuran(){
+let surah=document.getElementById("surahSelect").value;
+let audio=document.getElementById("quranAudio");
+audio.src=`https://download.quranicaudio.com/qdc/abdul_basit/murattal/${surah}`;
+audio.play();
+}
+
+function stopQuran(){
+let audio=document.getElementById("quranAudio");
+audio.pause();
+audio.currentTime=0;
+}
+
+function updateBackground(){
+let hour=new Date().getHours();
+if(hour>=6 && hour<17){
+document.body.style.backgroundImage="url('https://images.unsplash.com/photo-1504198453319-5ce911bafcde')";
+}else if(hour>=17 && hour<19){
+document.body.style.backgroundImage="url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee')";
+}else{
+document.body.style.backgroundImage="url('https://images.unsplash.com/photo-1519682577862-22b62b24e493')";
+}
 }
 updateBackground();
-setInterval(updateBackground, 60000); // تحديث كل دقيقة
+setInterval(updateBackground,60000);
 
 </script>
 </body>
