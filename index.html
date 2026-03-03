@@ -1,1 +1,105 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>مدونة رحلات السيارة</title>
+<style>
+body {
+    font-family: Arial;
+    background: #111;
+    color: white;
+    text-align: center;
+    margin: 0;
+}
+header {
+    background: #1e1e1e;
+    padding: 20px;
+    font-size: 24px;
+}
+.container {
+    padding: 20px;
+}
+input {
+    padding: 8px;
+    margin: 5px;
+    width: 200px;
+}
+button {
+    padding: 10px 20px;
+    background: green;
+    border: none;
+    color: white;
+    cursor: pointer;
+}
+.result {
+    margin-top: 20px;
+    font-size: 18px;
+}
+.trip {
+    background: #222;
+    margin: 10px;
+    padding: 10px;
+    border-radius: 5px;
+}
+</style>
+</head>
+<body>
 
+<header>
+🚗 مدونة رحلات السيارة
+</header>
+
+<div class="container">
+
+<h2>إضافة رحلة جديدة</h2>
+
+<input type="text" id="tripName" placeholder="اسم الرحلة"><br>
+<input type="number" id="tripPrice" placeholder="سعر الرحلة"><br>
+<input type="number" id="fuelCost" placeholder="مصاريف البنزين / الغاز"><br>
+<input type="number" id="carExpenses" placeholder="مصاريف أخرى للسيارة"><br>
+
+<button onclick="addTrip()">حساب وإضافة الرحلة</button>
+
+<div class="result" id="totalProfit"></div>
+
+<h2>الرحلات المسجلة</h2>
+<div id="trips"></div>
+
+</div>
+
+<!-- صوت قرآن في الخلفية -->
+<audio autoplay loop>
+  <source src="https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/001.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+let totalNet = 0;
+
+function addTrip() {
+    let name = document.getElementById("tripName").value;
+    let price = parseFloat(document.getElementById("tripPrice").value) || 0;
+    let fuel = parseFloat(document.getElementById("fuelCost").value) || 0;
+    let expenses = parseFloat(document.getElementById("carExpenses").value) || 0;
+
+    let net = price - (fuel + expenses);
+    totalNet += net;
+
+    let tripDiv = document.createElement("div");
+    tripDiv.className = "trip";
+    tripDiv.innerHTML = `
+        <strong>${name}</strong><br>
+        سعر الرحلة: ${price} جنيه<br>
+        مصاريف البنزين: ${fuel} جنيه<br>
+        مصاريف أخرى: ${expenses} جنيه<br>
+        صافي الربح: ${net} جنيه
+    `;
+
+    document.getElementById("trips").appendChild(tripDiv);
+
+    document.getElementById("totalProfit").innerHTML =
+        "💰 إجمالي صافي الأرباح: " + totalNet + " جنيه";
+}
+</script>
+
+</body>
+</html>
