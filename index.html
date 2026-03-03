@@ -2,415 +2,131 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>مدونة رحلات السيارة</title>
+<title>🚗 مدونة رحلات السيارة – المتقدمة</title>
+
+<!-- Leaflet خرائط -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <style>
-/* خلفية متحركة ثلاثية الأبعاد - نجوم متلألئة */
-@keyframes stars {
-    0% { opacity: 0.2; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.2); }
-    100% { opacity: 0.2; transform: scale(1); }
-}
-
-@keyframes shooting-star {
-    0% { transform: translateX(0) translateY(0) rotate(45deg); opacity: 1; }
-    100% { transform: translateX(200px) translateY(200px) rotate(45deg); opacity: 0; }
-}
-
-@keyframes galaxy-rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-body {
-    font-family: Arial;
-    margin: 0;
-    min-height: 100vh;
-    position: relative;
-    overflow-x: hidden;
-    color: white;
-}
-
-/* طبقات الخلفية المتحركة */
-.animated-bg {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
-    background: linear-gradient(125deg, #0a0f1e, #0f1a2f, #1a1f35, #0b0f1a);
-    background-size: 400% 400%;
-    animation: gradientBG 15s ease infinite;
-}
-
-@keyframes gradientBG {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-
-/* النجوم الثابتة */
-.stars, .twinkling-stars, .clouds {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
-}
-
-.stars {
-    background: #000 url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1IiBoZWlnaHQ9IjUiPjxjaXJjbGUgY3g9IjIuNSIgY3k9IjIuNSIgcj0iMSIgZmlsbD0id2hpdGUiIC8+PC9zdmc+') repeat;
-    opacity: 0.5;
-    animation: starsMove 50s linear infinite;
-}
-
-.twinkling-stars {
-    background: transparent url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCI+PGNpcmNsZSBjeD0iNSIgY3k9IjUiIHI9IjIiIGZpbGw9IndoaXRlIiBvcGFjaXR5PSIwLjgiIC8+PC9zdmc+') repeat;
-    opacity: 0.3;
-    animation: twinkling 4s ease-in-out infinite;
-}
-
-@keyframes starsMove {
-    from { transform: translateY(0); }
-    to { transform: translateY(-1000px); }
-}
-
-@keyframes twinkling {
-    0% { opacity: 0.2; }
-    50% { opacity: 0.8; }
-    100% { opacity: 0.2; }
-}
-
-/* نجوم متحركة فردية */
-.star {
-    position: fixed;
-    color: white;
-    font-size: 3px;
-    z-index: -1;
-    animation: float 6s ease-in-out infinite;
-}
-
-@keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-20px); }
-    100% { transform: translateY(0px); }
-}
-
-/* تأثير سديم متحرك */
-.nebula {
-    position: fixed;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle at 30% 50%, rgba(76, 0, 255, 0.2), transparent 70%);
-    border-radius: 50%;
-    filter: blur(50px);
-    z-index: -1;
-    animation: moveNebula 20s infinite alternate;
-}
-
-.nebula2 {
-    position: fixed;
-    width: 400px;
-    height: 400px;
-    background: radial-gradient(circle at 70% 30%, rgba(255, 0, 128, 0.15), transparent 70%);
-    border-radius: 50%;
-    filter: blur(60px);
-    z-index: -1;
-    animation: moveNebula2 25s infinite alternate;
-}
-
-@keyframes moveNebula {
-    0% { top: -100px; left: -100px; }
-    100% { top: 70%; left: 80%; }
-}
-
-@keyframes moveNebula2 {
-    0% { bottom: -100px; right: -100px; }
-    100% { bottom: 60%; right: 70%; }
-}
-
-/* جزيئات متلألئة */
-.particle {
-    position: fixed;
-    width: 2px;
-    height: 2px;
-    background: white;
-    border-radius: 50%;
-    z-index: -1;
-    animation: particleFloat 3s ease-in-out infinite;
-}
-
-@keyframes particleFloat {
-    0%, 100% { transform: translateY(0) scale(1); opacity: 0; }
-    50% { transform: translateY(-30px) scale(1.5); opacity: 0.8; }
-}
-
-/* المحتوى الرئيسي */
-header {
-    background: rgba(30, 30, 30, 0.8);
-    backdrop-filter: blur(10px);
-    padding: 20px;
-    font-size: 24px;
-    position: relative;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 4px 30px rgba(0,0,0,0.3);
-}
-
-.audio-control {
-    position: absolute;
-    left: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-}
-.audio-btn {
-    background: rgba(76, 175, 80, 0.8);
-    backdrop-filter: blur(5px);
-    color: white;
-    border: 1px solid rgba(255,255,255,0.2);
-    padding: 10px 20px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: all 0.3s;
-}
-.audio-btn:hover {
-    background: rgba(76, 175, 80, 1);
-    transform: scale(1.05);
-}
-.audio-btn.playing {
-    background: rgba(244, 67, 54, 0.8);
-}
-.audio-btn.playing::after {
-    content: " 🔴";
-}
-.audio-btn::after {
-    content: " 🎵";
-}
-.container {
-    padding: 20px;
-    position: relative;
-    z-index: 1;
-    background: rgba(0,0,0,0.3);
-    backdrop-filter: blur(5px);
-    margin: 20px;
-    border-radius: 15px;
-    border: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-}
-
-input {
-    padding: 12px;
-    margin: 5px;
-    width: 250px;
-    border: none;
-    background: rgba(255,255,255,0.1);
-    color: white;
-    border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.2);
-    transition: all 0.3s;
-}
-input:focus {
-    outline: none;
-    border-color: #4CAF50;
-    box-shadow: 0 0 15px rgba(76, 175, 80, 0.3);
-    background: rgba(255,255,255,0.15);
-}
-input::placeholder {
-    color: rgba(255,255,255,0.6);
-}
-
-button {
-    padding: 12px 30px;
-    background: linear-gradient(45deg, #4CAF50, #45a049);
-    border: none;
-    color: white;
-    cursor: pointer;
-    border-radius: 25px;
-    font-size: 16px;
-    font-weight: bold;
-    transition: all 0.3s;
-    border: 1px solid rgba(255,255,255,0.2);
-    margin: 10px;
-}
-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 20px rgba(76, 175, 80, 0.4);
-}
-
-.result {
-    margin-top: 30px;
-    font-size: 24px;
-    padding: 20px;
-    background: rgba(0,0,0,0.3);
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.1);
-    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
-}
-.trip {
-    background: rgba(34, 34, 34, 0.7);
-    backdrop-filter: blur(5px);
-    margin: 15px 0;
-    padding: 20px;
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.1);
-    transition: all 0.3s;
-    animation: slideIn 0.5s ease-out;
-}
-.trip:hover {
-    transform: translateX(5px);
-    border-color: #4CAF50;
-    box-shadow: 0 5px 20px rgba(0,0,0,0.5);
-}
-
-@keyframes slideIn {
-    from { opacity: 0; transform: translateX(-20px); }
-    to { opacity: 1; transform: translateX(0); }
-}
-
-h2 {
-    color: #fff;
-    text-shadow: 0 2px 10px rgba(76, 175, 80, 0.3);
-    margin-bottom: 20px;
-}
+body{margin:0;font-family:Arial;color:#fff;overflow-x:hidden;background:#0b0f1a;}
+header{background:rgba(0,0,0,0.8);padding:20px;font-size:24px;text-align:center;}
+.container{padding:20px;}
+input,button{padding:12px;margin:5px;border-radius:8px;border:none;font-size:16px;}
+input{width:250px;}
+button{background:#4CAF50;color:#fff;cursor:pointer;}
+button:hover{background:#45a049;}
+.map-container{width:100%;height:300px;margin:15px 0;border-radius:10px;overflow:hidden;border:2px solid #4CAF50;}
+.trip{background:rgba(0,0,0,0.5);padding:15px;margin:10px 0;border-radius:8px;}
+.result{margin-top:15px;font-size:18px;}
 </style>
 </head>
 <body>
 
-<!-- طبقات الخلفية المتحركة -->
-<div class="animated-bg"></div>
-<div class="stars"></div>
-<div class="twinkling-stars"></div>
-
-<!-- سدم متحركة -->
-<div class="nebula"></div>
-<div class="nebula2"></div>
-
-<!-- نجوم متحركة إضافية -->
-<div id="floatingStars"></div>
-
-<header>
-🚗 مدونة رحلات السيارة
-<div class="audio-control">
-    <button id="audioToggleBtn" class="audio-btn playing" onclick="toggleAudio()">تشغيل القرآن</button>
-</div>
-</header>
+<header>🚗 تخطيط الرحلات المتقدم + الخرائط + الطقس</header>
 
 <div class="container">
 
-<h2>إضافة رحلة جديدة</h2>
+<h2>📍 بيانات الرحلة</h2>
+<input type="text" id="startPoint" placeholder="نقطة الانطلاق (مثال: القاهرة)" /><br>
+<input type="text" id="endPoint" placeholder="نقطة الوصول (مثال: الإسكندرية)" /><br>
+<input type="number" id="tripPrice" placeholder="سعر الرحلة بالجنيه" /><br>
+<input type="number" id="fuelCost" placeholder="مصاريف البنزين" /><br>
+<input type="number" id="carExpenses" placeholder="مصاريف أخرى" /><br>
+<button onclick="planTrip()">📍 خطط الرحلة الآن</button>
 
-<input type="text" id="tripName" placeholder="اسم الرحلة"><br>
-<input type="number" id="tripPrice" placeholder="سعر الرحلة"><br>
-<input type="number" id="fuelCost" placeholder="مصاريف البنزين / الغاز"><br>
-<input type="number" id="carExpenses" placeholder="مصاريف أخرى للسيارة"><br>
-
-<button onclick="addTrip()">✨ حساب وإضافة الرحلة</button>
-
-<div class="result" id="totalProfit"></div>
-
-<h2>الرحلات المسجلة</h2>
-<div id="trips"></div>
+<div id="tripInfo"></div>
 
 </div>
 
-<!-- تشغيل صوت القرآن من ملف محلي -->
-<audio id="quranAudio" loop>
-  <source src="quran.mp3" type="audio/mpeg">
-  متصفحك لا يدعم تشغيل الصوت
-</audio>
-
 <script>
-let trips = [];
-let totalNet = 0;
-let audio = document.getElementById('quranAudio');
-let audioBtn = document.getElementById('audioToggleBtn');
+// ======================= بيانات رادارات وإشارات المرور (نماذج) =======================
+const radars = [
+    [30.013056,31.208853], // مثال القاهرة
+    [31.200092,29.918739]  // مثال الإسكندرية
+];
+const trafficLights = [
+    [30.044420,31.235712], // وسط القاهرة
+    [31.215640,29.955270]  // وسط الإسكندرية
+];
 
-// إنشاء نجوم عائمة إضافية
-function createFloatingStars() {
-    const starsContainer = document.getElementById('floatingStars');
-    for (let i = 0; i < 50; i++) {
-        let star = document.createElement('div');
-        star.className = 'star';
-        star.style.left = Math.random() * 100 + '%';
-        star.style.top = Math.random() * 100 + '%';
-        star.style.animationDelay = Math.random() * 5 + 's';
-        star.style.fontSize = Math.random() * 5 + 2 + 'px';
-        star.innerHTML = '✦';
-        starsContainer.appendChild(star);
+// ======================= وظيفة الطقس =======================
+async function fetchWeather(lat,lng) {
+    try {
+        let res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`);
+        let data = await res.json();
+        return data.current_weather.temperature + "°C";
+    } catch {
+        return "غير متوفر";
     }
 }
 
-window.onload = function() {
-    // إنشاء النجوم
-    createFloatingStars();
-    
-    // تحميل الرحلات من LocalStorage
-    const savedTrips = localStorage.getItem("trips");
-    if (savedTrips) {
-        trips = JSON.parse(savedTrips);
-        trips.forEach(trip => displayTrip(trip));
-        totalNet = trips.reduce((sum, t) => sum + t.net, 0);
-        document.getElementById("totalProfit").innerHTML =
-            "💰 إجمالي صافي الأرباح: " + totalNet + " جنيه";
-    }
-    
-    // محاولة تشغيل الصوت
-    audio.play().catch(function(error) {
-        console.log("لم يتم تشغيل الصوت تلقائياً، يرجى الضغط على زر التشغيل");
-        audioBtn.classList.remove('playing');
-    });
-};
-
-function toggleAudio() {
-    if (audio.paused) {
-        audio.play();
-        audioBtn.classList.add('playing');
-    } else {
-        audio.pause();
-        audioBtn.classList.remove('playing');
-    }
-}
-
-function addTrip() {
-    let name = document.getElementById("tripName").value;
-    let price = parseFloat(document.getElementById("tripPrice").value) || 0;
-    let fuel = parseFloat(document.getElementById("fuelCost").value) || 0;
-    let expenses = parseFloat(document.getElementById("carExpenses").value) || 0;
-
+// ======================= رسم الخريطة والمسار =======================
+async function planTrip() {
+    let startText = document.getElementById("startPoint").value;
+    let endText = document.getElementById("endPoint").value;
+    let price = parseFloat(document.getElementById("tripPrice").value)||0;
+    let fuel = parseFloat(document.getElementById("fuelCost").value)||0;
+    let expenses = parseFloat(document.getElementById("carExpenses").value)||0;
     let net = price - (fuel + expenses);
-    totalNet += net;
 
-    let trip = { name, price, fuel, expenses, net };
-    trips.push(trip);
+    // الحصول على إحداثيات النقطة (هنا نستخدم Nominatim فقط كـ مثال / يمكن تغييرها لمصدر آخر)
+    let startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startText)}`);
+    let endRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endText)}`);
+    let startData = await startRes.json();
+    let endData = await endRes.json();
+    if(!startData[0] || !endData[0]) {
+        alert("لم يتم العثور على الموقع، حاول اسم مكان آخر");
+        return;
+    }
 
-    // حفظ الرحلات في LocalStorage
-    localStorage.setItem("trips", JSON.stringify(trips));
+    let startLat = parseFloat(startData[0].lat);
+    let startLng = parseFloat(startData[0].lon);
+    let endLat = parseFloat(endData[0].lat);
+    let endLng = parseFloat(endData[0].lon);
 
-    displayTrip(trip);
-
-    document.getElementById("totalProfit").innerHTML =
-        "💰 إجمالي صافي الأرباح: " + totalNet + " جنيه";
-
-    // مسح الحقول
-    document.getElementById("tripName").value = "";
-    document.getElementById("tripPrice").value = "";
-    document.getElementById("fuelCost").value = "";
-    document.getElementById("carExpenses").value = "";
-}
-
-function displayTrip(trip) {
-    let tripDiv = document.createElement("div");
-    tripDiv.className = "trip";
-    tripDiv.innerHTML = `
-        <strong>${trip.name}</strong><br>
-        سعر الرحلة: ${trip.price} جنيه<br>
-        مصاريف البنزين: ${trip.fuel} جنيه<br>
-        مصاريف أخرى: ${trip.expenses} جنيه<br>
-        صافي الربح: ${trip.net} جنيه
+    // صفحة معلومات
+    document.getElementById("tripInfo").innerHTML = `
+        <div class="trip">
+        <strong>🚘 من: </strong>${startText} → <strong>إلى: </strong>${endText}<br>
+        سعر الرحلة: ${price} جنيه<br>
+        مصاريف الوقود: ${fuel} جنيه<br>
+        مصاريف أخرى: ${expenses} جنيه<br>
+        <strong>صافي الربح: ${net} جنيه</strong><br><br>
+        <div class="map-container" id="tripMap"></div>
+        <div>🌡️ درجة الحرارة في نقطة الانطلاق: <span id="wStart">...</span></div>
+        <div>🌡️ درجة الحرارة في نقطة الوصول: <span id="wEnd">...</span></div>
+        </div>
     `;
-    document.getElementById("trips").appendChild(tripDiv);
+
+    // رسم الخريطة
+    let map = L.map('tripMap').setView([ (startLat+endLat)/2, (startLng+endLng)/2 ], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+
+    // ماركر البداية والنهاية
+    L.marker([startLat,startLng]).addTo(map).bindPopup("📍 نقطة الانطلاق: "+startText);
+    L.marker([endLat,endLng]).addTo(map).bindPopup("📍 نقطة الوصول: "+endText);
+
+    // خط المسار (خط مستقيم مؤقت)
+    L.polyline([[startLat,startLng],[endLat,endLng]], {color:'#4CAF50'}).addTo(map);
+
+    // إشارات المرور
+    trafficLights.forEach(pos=> {
+        L.marker(pos,{icon:L.icon({iconUrl:"https://img.icons8.com/color/48/000000/traffic-light.png",iconSize:[30,30]})})
+        .addTo(map).bindPopup("🚦 إشارة مرور");
+    });
+
+    // الرادارات
+    radars.forEach(pos=> {
+        L.marker(pos,{icon:L.icon({iconUrl:"https://img.icons8.com/color/48/000000/speed-camera.png",iconSize:[30,30]})})
+        .addTo(map).bindPopup("📸 رادار سرعة");
+    });
+
+    // عرض الطقس
+    document.getElementById("wStart").innerText = await fetchWeather(startLat,startLng);
+    document.getElementById("wEnd").innerText = await fetchWeather(endLat,endLng);
 }
+
 </script>
 
 </body>
