@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>🚗 رحلات ذكية + خريطة تفاعلية + قرآن</title>
+<title>🚗 نظام إدارة الرحلات المتطور</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -34,104 +34,105 @@ border-radius:10px;
 margin-bottom:15px;
 }
 
-.result{
+.box{
 background:#1e1e1e;
 padding:15px;
 border-radius:10px;
-margin-top:10px;
+margin-top:15px;
 }
 
 button{
-padding:10px 15px;
+padding:8px 12px;
 border:none;
-border-radius:8px;
+border-radius:6px;
 background:#4CAF50;
 color:white;
 cursor:pointer;
-margin:5px 0;
+margin:4px;
 }
 
-select{
+.deleteBtn{
+background:#d32f2f;
+}
+
+input,select{
 padding:8px;
 border-radius:6px;
+border:none;
 margin:5px;
 }
-.quran-box{
-background:#1e1e1e;
-padding:15px;
-border-radius:10px;
-margin-top:20px;
-text-align:center;
+
+audio{
+width:100%;
+margin-top:10px;
 }
 </style>
 </head>
 <body>
 
-<header>🚗 حدد رحلتك من الخريطة + استمع للقرآن</header>
+<header>
+🚗 نظام إدارة الرحلات  
+<br>
+💰 إجمالي الأرباح: <span id="totalProfit">0</span> جنيه
+</header>
 
 <div class="container">
 
-<h3>🗺 اضغط على الخريطة لاختيار البداية ثم النهاية</h3>
+<h3>🗺 اختر البداية ثم النهاية</h3>
 <div id="map"></div>
 
-<button onclick="calculateTrip()">احسب الرحلة</button>
-
-<div id="output" class="result"></div>
-
-<!-- مشغل القرآن -->
-<div class="quran-box">
-<h3>🎧 القرآن الكريم</h3>
-
-<select id="surah">
-<option value="001.mp3">الفاتحة</option>
-<option value="002.mp3">البقرة</option>
-<option value="018.mp3">الكهف</option>
-<option value="036.mp3">يس</option>
-<option value="067.mp3">الملك</option>
+<select id="carType">
+<option value="6">🚗 صغيرة (6 لتر/100كم)</option>
+<option value="8" selected>🚙 متوسطة (8 لتر/100كم)</option>
+<option value="12">🚐 كبيرة (12 لتر/100كم)</option>
+<option value="15">🛻 نقل خفيف (15 لتر/100كم)</option>
 </select>
 
-<br>
+<input type="number" id="fuelPrice" placeholder="سعر لتر البنزين" value="12">
+<input type="number" id="customerMoney" placeholder="الزبون دفع كام؟">
 
+<button onclick="saveTrip()">➕ أضف الرحلة</button>
+
+<div id="tripDetails" class="box"></div>
+<div id="tripsList" class="box"></div>
+
+<div class="box">
+<h3>🎧 إذاعة القرآن الكريم</h3>
 <button onclick="playQuran()">▶ تشغيل</button>
 <button onclick="stopQuran()">⏹ إيقاف</button>
-
-<br><br>
-<audio id="audio" controls style="width:100%"></audio>
+<audio id="quranAudio"></audio>
 </div>
 
 </div>
 
 <script>
 
-// إنشاء الخريطة
+// ================== الخريطة ==================
 let map = L.map('map').setView([30.0444,31.2357],7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-maxZoom:19
-}).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 
-let startMarker=null;
-let endMarker=null;
 let startPoint=null;
 let endPoint=null;
+let startMarker=null;
+let endMarker=null;
 
-// اختيار النقاط بالضغط
 map.on('click', function(e){
 if(!startPoint){
 startPoint=e.latlng;
-startMarker=L.marker(startPoint).addTo(map).bindPopup("📍 نقطة البداية").openPopup();
+startMarker=L.marker(startPoint).addTo(map).bindPopup("📍 البداية").openPopup();
 }else if(!endPoint){
 endPoint=e.latlng;
-endMarker=L.marker(endPoint).addTo(map).bindPopup("📍 نقطة النهاية").openPopup();
+endMarker=L.marker(endPoint).addTo(map).bindPopup("📍 النهاية").openPopup();
 }else{
 map.removeLayer(startMarker);
 map.removeLayer(endMarker);
 startPoint=e.latlng;
 endPoint=null;
-startMarker=L.marker(startPoint).addTo(map).bindPopup("📍 نقطة البداية").openPopup();
+startMarker=L.marker(startPoint).addTo(map).bindPopup("📍 البداية").openPopup();
 }
 });
 
-// حساب المسافة
+// ================== حساب المسافة ==================
 function calculateDistance(lat1, lon1, lat2, lon2){
 const R=6371;
 const dLat=(lat2-lat1)*Math.PI/180;
@@ -145,46 +146,91 @@ const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 return R*c;
 }
 
-function calculateTrip(){
+// ================== الرحلات ==================
+let trips = JSON.parse(localStorage.getItem("trips")) || [];
+
+function updateTotal(){
+let total = trips.reduce((sum,t)=>sum+t.net,0);
+document.getElementById("totalProfit").innerText = total.toFixed(2);
+}
+
+function renderTrips(){
+let html="";
+trips.forEach((t,i)=>{
+html+=`
+<div>
+🚘 رحلة ${i+1} - ${t.carType}  
+<br>المسافة: ${t.distance.toFixed(1)} كم  
+<br>صافي: ${t.net.toFixed(2)} جنيه  
+<br>
+<button class="deleteBtn" onclick="deleteTrip(${i})">🗑 حذف</button>
+<hr>
+</div>`;
+});
+document.getElementById("tripsList").innerHTML=html;
+updateTotal();
+}
+
+function deleteTrip(index){
+trips.splice(index,1);
+localStorage.setItem("trips",JSON.stringify(trips));
+renderTrips();
+}
+
+function saveTrip(){
 if(!startPoint || !endPoint){
 alert("حدد النقطتين الأول");
 return;
 }
+
+let customerMoney=parseFloat(document.getElementById("customerMoney").value)||0;
+let fuelPrice=parseFloat(document.getElementById("fuelPrice").value)||0;
+let consumption=parseFloat(document.getElementById("carType").value);
+let carName=document.getElementById("carType").options[document.getElementById("carType").selectedIndex].text;
 
 let distance=calculateDistance(
 startPoint.lat,startPoint.lng,
 endPoint.lat,endPoint.lng
 );
 
-let fuelUsed=(distance/100)*8; // 8 لتر لكل 100 كم
-let fuelCost=fuelUsed*12; // سعر اللتر 12 جنيه
+let fuelUsed=(distance/100)*consumption;
+let fuelCost=fuelUsed*fuelPrice;
+let net=customerMoney - fuelCost;
 
-let avgSpeed=80;
-let time=distance/avgSpeed;
-let h=Math.floor(time);
-let m=Math.round((time-h)*60);
+let trip={
+distance,
+fuelCost,
+customerMoney,
+net,
+carType:carName
+};
 
-document.getElementById("output").innerHTML=
+trips.push(trip);
+localStorage.setItem("trips",JSON.stringify(trips));
+
+document.getElementById("tripDetails").innerHTML=
 `المسافة: ${distance.toFixed(2)} كم <br>
-استهلاك البنزين: ${fuelUsed.toFixed(2)} لتر <br>
+نوع العربية: ${carName} <br>
 تكلفة البنزين: ${fuelCost.toFixed(2)} جنيه <br>
-الوقت المتوقع: ${h} ساعة و ${m} دقيقة`;
+الزبون دفع: ${customerMoney} جنيه <br>
+صافي الربح: ${net.toFixed(2)} جنيه`;
+
+renderTrips();
 }
 
 // ================== القرآن ==================
-
 function playQuran(){
-let surah=document.getElementById("surah").value;
-let audio=document.getElementById("audio");
-audio.src=`https://download.quranicaudio.com/qdc/abdul_basit/murattal/${surah}`;
+let audio=document.getElementById("quranAudio");
+audio.src="https://stream.radiojar.com/8s5u5tpdtwzuv";
 audio.play();
 }
 
 function stopQuran(){
-let audio=document.getElementById("audio");
+let audio=document.getElementById("quranAudio");
 audio.pause();
-audio.currentTime=0;
 }
+
+renderTrips();
 
 </script>
 
