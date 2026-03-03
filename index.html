@@ -4,49 +4,296 @@
 <meta charset="UTF-8">
 <title>مدونة رحلات السيارة</title>
 <style>
+/* خلفية متحركة ثلاثية الأبعاد - نجوم متلألئة */
+@keyframes stars {
+    0% { opacity: 0.2; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.2); }
+    100% { opacity: 0.2; transform: scale(1); }
+}
+
+@keyframes shooting-star {
+    0% { transform: translateX(0) translateY(0) rotate(45deg); opacity: 1; }
+    100% { transform: translateX(200px) translateY(200px) rotate(45deg); opacity: 0; }
+}
+
+@keyframes galaxy-rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 body {
     font-family: Arial;
-    background: #111;
-    color: white;
-    text-align: center;
     margin: 0;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+    color: white;
 }
+
+/* طبقات الخلفية المتحركة */
+.animated-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background: linear-gradient(125deg, #0a0f1e, #0f1a2f, #1a1f35, #0b0f1a);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+}
+
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* النجوم الثابتة */
+.stars, .twinkling-stars, .clouds {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+}
+
+.stars {
+    background: #000 url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1IiBoZWlnaHQ9IjUiPjxjaXJjbGUgY3g9IjIuNSIgY3k9IjIuNSIgcj0iMSIgZmlsbD0id2hpdGUiIC8+PC9zdmc+') repeat;
+    opacity: 0.5;
+    animation: starsMove 50s linear infinite;
+}
+
+.twinkling-stars {
+    background: transparent url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCI+PGNpcmNsZSBjeD0iNSIgY3k9IjUiIHI9IjIiIGZpbGw9IndoaXRlIiBvcGFjaXR5PSIwLjgiIC8+PC9zdmc+') repeat;
+    opacity: 0.3;
+    animation: twinkling 4s ease-in-out infinite;
+}
+
+@keyframes starsMove {
+    from { transform: translateY(0); }
+    to { transform: translateY(-1000px); }
+}
+
+@keyframes twinkling {
+    0% { opacity: 0.2; }
+    50% { opacity: 0.8; }
+    100% { opacity: 0.2; }
+}
+
+/* نجوم متحركة فردية */
+.star {
+    position: fixed;
+    color: white;
+    font-size: 3px;
+    z-index: -1;
+    animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+    100% { transform: translateY(0px); }
+}
+
+/* تأثير سديم متحرك */
+.nebula {
+    position: fixed;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle at 30% 50%, rgba(76, 0, 255, 0.2), transparent 70%);
+    border-radius: 50%;
+    filter: blur(50px);
+    z-index: -1;
+    animation: moveNebula 20s infinite alternate;
+}
+
+.nebula2 {
+    position: fixed;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle at 70% 30%, rgba(255, 0, 128, 0.15), transparent 70%);
+    border-radius: 50%;
+    filter: blur(60px);
+    z-index: -1;
+    animation: moveNebula2 25s infinite alternate;
+}
+
+@keyframes moveNebula {
+    0% { top: -100px; left: -100px; }
+    100% { top: 70%; left: 80%; }
+}
+
+@keyframes moveNebula2 {
+    0% { bottom: -100px; right: -100px; }
+    100% { bottom: 60%; right: 70%; }
+}
+
+/* جزيئات متلألئة */
+.particle {
+    position: fixed;
+    width: 2px;
+    height: 2px;
+    background: white;
+    border-radius: 50%;
+    z-index: -1;
+    animation: particleFloat 3s ease-in-out infinite;
+}
+
+@keyframes particleFloat {
+    0%, 100% { transform: translateY(0) scale(1); opacity: 0; }
+    50% { transform: translateY(-30px) scale(1.5); opacity: 0.8; }
+}
+
+/* المحتوى الرئيسي */
 header {
-    background: #1e1e1e;
+    background: rgba(30, 30, 30, 0.8);
+    backdrop-filter: blur(10px);
     padding: 20px;
     font-size: 24px;
+    position: relative;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 4px 30px rgba(0,0,0,0.3);
+}
+
+.audio-control {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+.audio-btn {
+    background: rgba(76, 175, 80, 0.8);
+    backdrop-filter: blur(5px);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s;
+}
+.audio-btn:hover {
+    background: rgba(76, 175, 80, 1);
+    transform: scale(1.05);
+}
+.audio-btn.playing {
+    background: rgba(244, 67, 54, 0.8);
+}
+.audio-btn.playing::after {
+    content: " 🔴";
+}
+.audio-btn::after {
+    content: " 🎵";
 }
 .container {
     padding: 20px;
+    position: relative;
+    z-index: 1;
+    background: rgba(0,0,0,0.3);
+    backdrop-filter: blur(5px);
+    margin: 20px;
+    border-radius: 15px;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
 }
+
 input {
-    padding: 8px;
+    padding: 12px;
     margin: 5px;
-    width: 200px;
+    width: 250px;
+    border: none;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.2);
+    transition: all 0.3s;
 }
+input:focus {
+    outline: none;
+    border-color: #4CAF50;
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.3);
+    background: rgba(255,255,255,0.15);
+}
+input::placeholder {
+    color: rgba(255,255,255,0.6);
+}
+
 button {
-    padding: 10px 20px;
-    background: green;
+    padding: 12px 30px;
+    background: linear-gradient(45deg, #4CAF50, #45a049);
     border: none;
     color: white;
     cursor: pointer;
+    border-radius: 25px;
+    font-size: 16px;
+    font-weight: bold;
+    transition: all 0.3s;
+    border: 1px solid rgba(255,255,255,0.2);
+    margin: 10px;
 }
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(76, 175, 80, 0.4);
+}
+
 .result {
-    margin-top: 20px;
-    font-size: 18px;
+    margin-top: 30px;
+    font-size: 24px;
+    padding: 20px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.1);
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
 }
 .trip {
-    background: #222;
-    margin: 10px;
-    padding: 10px;
-    border-radius: 5px;
+    background: rgba(34, 34, 34, 0.7);
+    backdrop-filter: blur(5px);
+    margin: 15px 0;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.3s;
+    animation: slideIn 0.5s ease-out;
+}
+.trip:hover {
+    transform: translateX(5px);
+    border-color: #4CAF50;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+h2 {
+    color: #fff;
+    text-shadow: 0 2px 10px rgba(76, 175, 80, 0.3);
+    margin-bottom: 20px;
 }
 </style>
 </head>
 <body>
 
+<!-- طبقات الخلفية المتحركة -->
+<div class="animated-bg"></div>
+<div class="stars"></div>
+<div class="twinkling-stars"></div>
+
+<!-- سدم متحركة -->
+<div class="nebula"></div>
+<div class="nebula2"></div>
+
+<!-- نجوم متحركة إضافية -->
+<div id="floatingStars"></div>
+
 <header>
 🚗 مدونة رحلات السيارة
+<div class="audio-control">
+    <button id="audioToggleBtn" class="audio-btn playing" onclick="toggleAudio()">تشغيل القرآن</button>
+</div>
 </header>
 
 <div class="container">
@@ -58,7 +305,7 @@ button {
 <input type="number" id="fuelCost" placeholder="مصاريف البنزين / الغاز"><br>
 <input type="number" id="carExpenses" placeholder="مصاريف أخرى للسيارة"><br>
 
-<button onclick="addTrip()">حساب وإضافة الرحلة</button>
+<button onclick="addTrip()">✨ حساب وإضافة الرحلة</button>
 
 <div class="result" id="totalProfit"></div>
 
@@ -68,16 +315,37 @@ button {
 </div>
 
 <!-- تشغيل صوت القرآن من ملف محلي -->
-<audio autoplay loop>
+<audio id="quranAudio" loop>
   <source src="quran.mp3" type="audio/mpeg">
+  متصفحك لا يدعم تشغيل الصوت
 </audio>
 
 <script>
 let trips = [];
 let totalNet = 0;
+let audio = document.getElementById('quranAudio');
+let audioBtn = document.getElementById('audioToggleBtn');
 
-// تحميل الرحلات من LocalStorage عند فتح الموقع
+// إنشاء نجوم عائمة إضافية
+function createFloatingStars() {
+    const starsContainer = document.getElementById('floatingStars');
+    for (let i = 0; i < 50; i++) {
+        let star = document.createElement('div');
+        star.className = 'star';
+        star.style.left = Math.random() * 100 + '%';
+        star.style.top = Math.random() * 100 + '%';
+        star.style.animationDelay = Math.random() * 5 + 's';
+        star.style.fontSize = Math.random() * 5 + 2 + 'px';
+        star.innerHTML = '✦';
+        starsContainer.appendChild(star);
+    }
+}
+
 window.onload = function() {
+    // إنشاء النجوم
+    createFloatingStars();
+    
+    // تحميل الرحلات من LocalStorage
     const savedTrips = localStorage.getItem("trips");
     if (savedTrips) {
         trips = JSON.parse(savedTrips);
@@ -86,7 +354,23 @@ window.onload = function() {
         document.getElementById("totalProfit").innerHTML =
             "💰 إجمالي صافي الأرباح: " + totalNet + " جنيه";
     }
+    
+    // محاولة تشغيل الصوت
+    audio.play().catch(function(error) {
+        console.log("لم يتم تشغيل الصوت تلقائياً، يرجى الضغط على زر التشغيل");
+        audioBtn.classList.remove('playing');
+    });
 };
+
+function toggleAudio() {
+    if (audio.paused) {
+        audio.play();
+        audioBtn.classList.add('playing');
+    } else {
+        audio.pause();
+        audioBtn.classList.remove('playing');
+    }
+}
 
 function addTrip() {
     let name = document.getElementById("tripName").value;
@@ -108,7 +392,7 @@ function addTrip() {
     document.getElementById("totalProfit").innerHTML =
         "💰 إجمالي صافي الأرباح: " + totalNet + " جنيه";
 
-    // مسح الحقول بعد الإضافة
+    // مسح الحقول
     document.getElementById("tripName").value = "";
     document.getElementById("tripPrice").value = "";
     document.getElementById("fuelCost").value = "";
