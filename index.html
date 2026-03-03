@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>🚗 نظام إدارة الرحلات</title>
+<title>🚗 نظام الرحلات المتطور</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"/>
@@ -16,12 +16,14 @@ body{
 margin:0;
 font-family:Arial;
 color:white;
-background: linear-gradient(-45deg,#0f2027,#203a43,#2c5364);
+
+/* خلفية متحركة */
+background: linear-gradient(-45deg,#0f2027,#203a43,#2c5364,#000);
 background-size:400% 400%;
-animation:gradientBG 15s ease infinite;
+animation:bgMove 15s ease infinite;
 }
 
-@keyframes gradientBG{
+@keyframes bgMove{
 0%{background-position:0% 50%}
 50%{background-position:100% 50%}
 100%{background-position:0% 50%}
@@ -60,19 +62,18 @@ cursor:pointer;
 background:#d32f2f;
 }
 
+.box{
+background:#1e1e1e;
+padding:15px;
+border-radius:12px;
+margin-top:15px;
+}
+
 input,select{
 padding:8px;
 margin:5px;
 border-radius:8px;
 border:none;
-}
-
-.box{
-background:#1e1e1e;
-padding:15px;
-border-radius:12px;
-border-radius:12px;
-margin-top:15px;
 }
 
 </style>
@@ -83,17 +84,19 @@ margin-top:15px;
 <header>
 🚗 نظام إدارة الرحلات  
 <br>
-💰 إجمالي الأرباح: <span id="totalProfit">0</span> جنيه
+💰 الأرباح: <span id="totalProfit">0</span> جنيه
 </header>
 
 <div class="container">
 
 <button onclick="getMyLocation()">📍 تحديد موقعي</button>
-<button onclick="startTracking()">🚗 بدء التتبع أثناء الحركة</button>
-<button onclick="playQuran()">▶ تشغيل القرآن</button>
+<button onclick="startTracking()">🚗 بدء التتبع</button>
+<button onclick="stopTrip()" style="background:#d32f2f">🛑 إنهاء الرحلة</button>
+<button onclick="playQuran()">▶ القرآن</button>
 <button onclick="stopQuran()">⏹ إيقاف القرآن</button>
 
 <h3>🗺 اختر نهاية الرحلة من الخريطة</h3>
+
 <div id="map"></div>
 
 <select id="carType">
@@ -103,8 +106,8 @@ margin-top:15px;
 <option value="15">🛻 نقل خفيف</option>
 </select>
 
-<input type="number" id="fuelPrice" placeholder="سعر لتر البنزين" value="12">
-<input type="number" id="customerMoney" placeholder="الزبون دفع كام؟">
+<input type="number" id="fuelPrice" placeholder="سعر البنزين" value="12">
+<input type="number" id="customerMoney" placeholder="الزبون دفع">
 
 <button onclick="saveTrip()">➕ حفظ الرحلة</button>
 
@@ -128,22 +131,23 @@ let endPoint=null;
 let startMarker=null;
 let userMarker=null;
 let routingControl=null;
+
 let realDistance=0;
 let realTime=0;
 
 let watchID=null;
 let pathLine=null;
 let pathCoords=[];
+let tripActive=false;
 
-// تحديد الموقع يدويًا
+/* تحديد الموقع */
+
 function getMyLocation(){
 
-if(navigator.geolocation){
+navigator.geolocation.getCurrentPosition(function(p){
 
-navigator.geolocation.getCurrentPosition(function(position){
-
-let lat=position.coords.latitude;
-let lng=position.coords.longitude;
+let lat=p.coords.latitude;
+let lng=p.coords.longitude;
 
 startPoint=L.latLng(lat,lng);
 
@@ -153,31 +157,51 @@ if(startMarker) map.removeLayer(startMarker);
 
 startMarker=L.marker([lat,lng])
 .addTo(map)
-.bindPopup("📍 موقعك الحالي");
+.bindPopup("📍 موقعك");
 
 });
 
 }
+
+/* القرب من الهدف */
+
+function isNearDestination(lat,lng){
+
+if(!endPoint) return false;
+
+let R=6371;
+
+let dLat=(endPoint.lat-lat)*Math.PI/180;
+let dLon=(endPoint.lng-lng)*Math.PI/180;
+
+let a=
+Math.sin(dLat/2)**2+
+Math.cos(lat*Math.PI/180)*
+Math.cos(endPoint.lat*Math.PI/180)*
+Math.sin(dLon/2)**2;
+
+let distance=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+
+return distance*1000 <= 30;
 }
 
-// التتبع أثناء الحركة
+/* التتبع */
+
 function startTracking(){
 
-if(!navigator.geolocation){
-alert("المتصفح لا يدعم GPS");
-return;
-}
+if(!navigator.geolocation) return;
 
-watchID=navigator.geolocation.watchPosition(function(position){
+tripActive=true;
 
-let lat=position.coords.latitude;
-let lng=position.coords.longitude;
+watchID=navigator.geolocation.watchPosition(function(pos){
+
+let lat=pos.coords.latitude;
+let lng=pos.coords.longitude;
 
 let newPos=L.latLng(lat,lng);
 
 if(!startPoint) startPoint=newPos;
 
-// تحديث الماركر
 if(!userMarker){
 userMarker=L.marker(newPos).addTo(map);
 }else{
@@ -186,7 +210,6 @@ userMarker.setLatLng(newPos);
 
 map.setView(newPos,16);
 
-// حفظ المسار
 pathCoords.push([lat,lng]);
 
 if(pathLine) map.removeLayer(pathLine);
@@ -196,12 +219,26 @@ weight:5,
 color:"#00ff88"
 }).addTo(map);
 
+/* حفظ الحالة */
+localStorage.setItem("tripData",JSON.stringify({
+startPoint,
+endPoint,
+pathCoords,
+tripActive
+}));
+
+if(isNearDestination(lat,lng)){
+stopTrip();
+alert("🎯 وصلت إلى المكان");
+}
+
 });
 
 }
 
-// اختيار نهاية الرحلة
-map.on('click', function(e){
+/* اختيار النهاية */
+
+map.on('click',function(e){
 
 if(!startPoint){
 alert("حدد موقعك أولًا");
@@ -216,20 +253,24 @@ map.removeControl(routingControl);
 
 routingControl=L.Routing.control({
 waypoints:[startPoint,endPoint],
-routeWhileDragging:false,
 show:false,
-lineOptions:{styles:[{color:'#00ff88',weight:6}]}
+routeWhileDragging:false,
+lineOptions:{styles:[{color:"#00ff88",weight:6}]}
 }).addTo(map);
 
 routingControl.on('routesfound',function(e){
+
 let route=e.routes[0];
+
 realDistance=route.summary.totalDistance/1000;
 realTime=route.summary.totalTime/60;
-});
 
 });
 
-// الرحلات
+});
+
+/* الرحلات */
+
 let trips=JSON.parse(localStorage.getItem("trips"))||[];
 
 function renderTrips(){
@@ -255,54 +296,104 @@ document.getElementById("totalProfit").innerText=total.toFixed(2);
 
 }
 
-function deleteTrip(index){
-trips.splice(index,1);
-localStorage.setItem("trips",JSON.stringify(trips));
-renderTrips();
-}
+/* حفظ الرحلة */
 
 function saveTrip(){
 
-if(!endPoint){
-alert("اختر نهاية الرحلة");
-return;
-}
+if(!endPoint) return;
 
-let customerMoney=parseFloat(document.getElementById("customerMoney").value)||0;
-let fuelPrice=parseFloat(document.getElementById("fuelPrice").value)||0;
-let consumption=parseFloat(document.getElementById("carType").value);
+let customerMoney=parseFloat(
+document.getElementById("customerMoney").value)||0;
+
+let fuelPrice=parseFloat(
+document.getElementById("fuelPrice").value)||0;
+
+let consumption=parseFloat(
+document.getElementById("carType").value);
 
 let fuelUsed=(realDistance/100)*consumption;
 let fuelCost=fuelUsed*fuelPrice;
+
 let net=customerMoney-fuelCost;
 
-let trip={
+trips.push({
 distance:realDistance,
 time:realTime,
-net:net
-};
+net
+});
 
-trips.push(trip);
 localStorage.setItem("trips",JSON.stringify(trips));
 
-document.getElementById("tripDetails").innerHTML=
-`📏 المسافة: ${realDistance.toFixed(2)} كم<br>
-⏱ الزمن: ${realTime.toFixed(1)} دقيقة<br>
-⛽ تكلفة البنزين: ${fuelCost.toFixed(2)} جنيه<br>
-💰 الربح: ${net.toFixed(2)} جنيه`;
-
 renderTrips();
+
 }
 
-// القرآن
+/* حذف */
+
+function deleteTrip(index){
+
+trips.splice(index,1);
+
+localStorage.setItem("trips",JSON.stringify(trips));
+
+renderTrips();
+
+}
+
+/* إنهاء الرحلة */
+
+function stopTrip(){
+
+tripActive=false;
+
+if(watchID){
+navigator.geolocation.clearWatch(watchID);
+}
+
+localStorage.removeItem("tripData");
+
+alert("تم إنهاء الرحلة");
+
+}
+
+/* القرآن */
+
 function playQuran(){
+
 let audio=document.getElementById("quranAudio");
+
 audio.src="https://stream.radiojar.com/8s5u5tpdtwzuv";
+
 audio.play();
+
 }
 
 function stopQuran(){
 document.getElementById("quranAudio").pause();
+}
+
+/* استرجاع الرحلة بعد الريفرش */
+
+let tripData=JSON.parse(localStorage.getItem("tripData"));
+
+if(tripData){
+
+startPoint=tripData.startPoint;
+endPoint=tripData.endPoint;
+pathCoords=tripData.pathCoords||[];
+tripActive=tripData.tripActive;
+
+startTracking();
+
+if(pathCoords.length){
+
+pathLine=L.polyline(pathCoords,{
+weight:5,
+color:"#00ff88"
+}).addTo(map);
+
+}
+
 }
 
 renderTrips();
