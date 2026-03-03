@@ -2,100 +2,92 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>🚗 رحلات السيارة الذكية</title>
+<title>🚗 رحلات ذكية + خريطة تفاعلية + قرآن</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <style>
 body{
-    margin:0;
-    font-family:Arial;
-    color:white;
-    min-height:100vh;
-    background-size:cover;
-    transition:2s;
+margin:0;
+font-family:Arial;
+background:#111;
+color:white;
 }
+
 header{
-    background:rgba(0,0,0,0.6);
-    padding:20px;
-    font-size:24px;
-    text-align:center;
+background:#1e1e1e;
+padding:15px;
+text-align:center;
+font-size:22px;
 }
+
 .container{
-    padding:20px;
-    background:rgba(0,0,0,0.5);
-    border-radius:15px;
-    margin:20px auto;
-    max-width:900px;
+padding:15px;
+max-width:1000px;
+margin:auto;
 }
-input,button,select{
-    padding:10px;
-    margin:5px;
-    border-radius:8px;
-    border:none;
+
+#map{
+height:400px;
+border-radius:10px;
+margin-bottom:15px;
 }
+
+.result{
+background:#1e1e1e;
+padding:15px;
+border-radius:10px;
+margin-top:10px;
+}
+
 button{
-    background:#4CAF50;
-    color:white;
-    cursor:pointer;
+padding:10px 15px;
+border:none;
+border-radius:8px;
+background:#4CAF50;
+color:white;
+cursor:pointer;
+margin:5px 0;
 }
-.map-container{
-    height:300px;
-    margin:15px 0;
-    border-radius:10px;
-    overflow:hidden;
+
+select{
+padding:8px;
+border-radius:6px;
+margin:5px;
 }
-.trip{
-    background:rgba(0,0,0,0.6);
-    padding:15px;
-    border-radius:10px;
-}
-.quran-player{
-    background:rgba(0,0,0,0.7);
-    padding:15px;
-    margin-top:20px;
-    border-radius:10px;
-    text-align:center;
-}
-#car{
-    position:fixed;
-    bottom:20px;
-    left:-150px;
-    width:120px;
-    transition:10s linear;
+.quran-box{
+background:#1e1e1e;
+padding:15px;
+border-radius:10px;
+margin-top:20px;
+text-align:center;
 }
 </style>
 </head>
 <body>
 
-<header>🚗 رحلات السيارة الذكية + مشغل قرآن</header>
+<header>🚗 حدد رحلتك من الخريطة + استمع للقرآن</header>
 
 <div class="container">
 
-<h3>📍 بيانات الرحلة</h3>
+<h3>🗺 اضغط على الخريطة لاختيار البداية ثم النهاية</h3>
+<div id="map"></div>
 
-<button onclick="getMyLocation()">📍 استخدم موقعي الحالي</button><br>
+<button onclick="calculateTrip()">احسب الرحلة</button>
 
-<input type="text" id="startPoint" placeholder="نقطة الانطلاق">
-<input type="text" id="endPoint" placeholder="نقطة الوصول"><br>
-
-<input type="number" id="tripPrice" placeholder="سعر الرحلة">
-
-<button onclick="planTrip()">🚀 خطط الرحلة</button>
-
-<div id="tripInfo"></div>
+<div id="output" class="result"></div>
 
 <!-- مشغل القرآن -->
-<div class="quran-player">
-<h3>🎧 استمع إلى القرآن الكريم</h3>
+<div class="quran-box">
+<h3>🎧 القرآن الكريم</h3>
 
-<select id="surahSelect">
-<option value="001.mp3">سورة الفاتحة</option>
-<option value="002.mp3">سورة البقرة</option>
-<option value="036.mp3">سورة يس</option>
-<option value="055.mp3">سورة الرحمن</option>
-<option value="067.mp3">سورة الملك</option>
+<select id="surah">
+<option value="001.mp3">الفاتحة</option>
+<option value="002.mp3">البقرة</option>
+<option value="018.mp3">الكهف</option>
+<option value="036.mp3">يس</option>
+<option value="067.mp3">الملك</option>
 </select>
 
 <br>
@@ -104,29 +96,42 @@ button{
 <button onclick="stopQuran()">⏹ إيقاف</button>
 
 <br><br>
-
-<audio id="quranAudio" controls style="width:100%"></audio>
-
+<audio id="audio" controls style="width:100%"></audio>
 </div>
 
 </div>
-
-<img src="https://images.unsplash.com/photo-1602524817360-0b1f3120f927?auto=format&fit=crop&w=600&q=80" id="car">
 
 <script>
 
-let myLat=null,myLng=null;
+// إنشاء الخريطة
+let map = L.map('map').setView([30.0444,31.2357],7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+maxZoom:19
+}).addTo(map);
 
-function getMyLocation(){
-if(navigator.geolocation){
-navigator.geolocation.getCurrentPosition(pos=>{
-myLat=pos.coords.latitude;
-myLng=pos.coords.longitude;
-alert("تم تحديد موقعك ✅");
+let startMarker=null;
+let endMarker=null;
+let startPoint=null;
+let endPoint=null;
+
+// اختيار النقاط بالضغط
+map.on('click', function(e){
+if(!startPoint){
+startPoint=e.latlng;
+startMarker=L.marker(startPoint).addTo(map).bindPopup("📍 نقطة البداية").openPopup();
+}else if(!endPoint){
+endPoint=e.latlng;
+endMarker=L.marker(endPoint).addTo(map).bindPopup("📍 نقطة النهاية").openPopup();
+}else{
+map.removeLayer(startMarker);
+map.removeLayer(endMarker);
+startPoint=e.latlng;
+endPoint=null;
+startMarker=L.marker(startPoint).addTo(map).bindPopup("📍 نقطة البداية").openPopup();
+}
 });
-}
-}
 
+// حساب المسافة
 function calculateDistance(lat1, lon1, lat2, lon2){
 const R=6371;
 const dLat=(lat2-lat1)*Math.PI/180;
@@ -140,90 +145,48 @@ const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 return R*c;
 }
 
-async function planTrip(){
-
-let price=parseFloat(document.getElementById("tripPrice").value)||0;
-
-let startLat,startLng;
-
-if(myLat && myLng){
-startLat=myLat;
-startLng=myLng;
-}else{
-let startText=document.getElementById("startPoint").value;
-let res=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startText)}`);
-let data=await res.json();
-if(!data[0]) return alert("لم يتم العثور على الموقع");
-startLat=parseFloat(data[0].lat);
-startLng=parseFloat(data[0].lon);
+function calculateTrip(){
+if(!startPoint || !endPoint){
+alert("حدد النقطتين الأول");
+return;
 }
 
-let endText=document.getElementById("endPoint").value;
-let endRes=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endText)}`);
-let endData=await endRes.json();
-if(!endData[0]) return alert("لم يتم العثور على الموقع");
+let distance=calculateDistance(
+startPoint.lat,startPoint.lng,
+endPoint.lat,endPoint.lng
+);
 
-let endLat=parseFloat(endData[0].lat);
-let endLng=parseFloat(endData[0].lon);
-
-let distance=calculateDistance(startLat,startLng,endLat,endLng);
-
-let fuelUsed=(distance/100)*8;
-let fuelCost=fuelUsed*12;
+let fuelUsed=(distance/100)*8; // 8 لتر لكل 100 كم
+let fuelCost=fuelUsed*12; // سعر اللتر 12 جنيه
 
 let avgSpeed=80;
 let time=distance/avgSpeed;
 let h=Math.floor(time);
 let m=Math.round((time-h)*60);
 
-let net=price-fuelCost;
-
-document.getElementById("tripInfo").innerHTML=`
-<div class="trip">
-المسافة: ${distance.toFixed(2)} كم <br>
+document.getElementById("output").innerHTML=
+`المسافة: ${distance.toFixed(2)} كم <br>
 استهلاك البنزين: ${fuelUsed.toFixed(2)} لتر <br>
 تكلفة البنزين: ${fuelCost.toFixed(2)} جنيه <br>
-الوقت المتوقع: ${h} ساعة و ${m} دقيقة <br>
-صافي الربح: ${net.toFixed(2)} جنيه
-<div class="map-container" id="tripMap"></div>
-</div>
-`;
-
-let map=L.map('tripMap').setView([(startLat+endLat)/2,(startLng+endLng)/2],7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-L.marker([startLat,startLng]).addTo(map);
-L.marker([endLat,endLng]).addTo(map);
-L.polyline([[startLat,startLng],[endLat,endLng]],{color:'green'}).addTo(map);
-
-document.getElementById("car").style.left="100%";
+الوقت المتوقع: ${h} ساعة و ${m} دقيقة`;
 }
 
+// ================== القرآن ==================
+
 function playQuran(){
-let surah=document.getElementById("surahSelect").value;
-let audio=document.getElementById("quranAudio");
+let surah=document.getElementById("surah").value;
+let audio=document.getElementById("audio");
 audio.src=`https://download.quranicaudio.com/qdc/abdul_basit/murattal/${surah}`;
 audio.play();
 }
 
 function stopQuran(){
-let audio=document.getElementById("quranAudio");
+let audio=document.getElementById("audio");
 audio.pause();
 audio.currentTime=0;
 }
 
-function updateBackground(){
-let hour=new Date().getHours();
-if(hour>=6 && hour<17){
-document.body.style.backgroundImage="url('https://images.unsplash.com/photo-1504198453319-5ce911bafcde')";
-}else if(hour>=17 && hour<19){
-document.body.style.backgroundImage="url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee')";
-}else{
-document.body.style.backgroundImage="url('https://images.unsplash.com/photo-1519682577862-22b62b24e493')";
-}
-}
-updateBackground();
-setInterval(updateBackground,60000);
-
 </script>
+
 </body>
 </html>
