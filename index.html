@@ -67,13 +67,26 @@ button {
 
 </div>
 
-<!-- صوت قرآن في الخلفية -->
+<!-- تشغيل صوت القرآن من ملف محلي -->
 <audio autoplay loop>
-  <source src="https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/001.mp3" type="audio/mpeg">
+  <source src="quran.mp3" type="audio/mpeg">
 </audio>
 
 <script>
+let trips = [];
 let totalNet = 0;
+
+// تحميل الرحلات من LocalStorage عند فتح الموقع
+window.onload = function() {
+    const savedTrips = localStorage.getItem("trips");
+    if (savedTrips) {
+        trips = JSON.parse(savedTrips);
+        trips.forEach(trip => displayTrip(trip));
+        totalNet = trips.reduce((sum, t) => sum + t.net, 0);
+        document.getElementById("totalProfit").innerHTML =
+            "💰 إجمالي صافي الأرباح: " + totalNet + " جنيه";
+    }
+};
 
 function addTrip() {
     let name = document.getElementById("tripName").value;
@@ -84,20 +97,35 @@ function addTrip() {
     let net = price - (fuel + expenses);
     totalNet += net;
 
-    let tripDiv = document.createElement("div");
-    tripDiv.className = "trip";
-    tripDiv.innerHTML = `
-        <strong>${name}</strong><br>
-        سعر الرحلة: ${price} جنيه<br>
-        مصاريف البنزين: ${fuel} جنيه<br>
-        مصاريف أخرى: ${expenses} جنيه<br>
-        صافي الربح: ${net} جنيه
-    `;
+    let trip = { name, price, fuel, expenses, net };
+    trips.push(trip);
 
-    document.getElementById("trips").appendChild(tripDiv);
+    // حفظ الرحلات في LocalStorage
+    localStorage.setItem("trips", JSON.stringify(trips));
+
+    displayTrip(trip);
 
     document.getElementById("totalProfit").innerHTML =
         "💰 إجمالي صافي الأرباح: " + totalNet + " جنيه";
+
+    // مسح الحقول بعد الإضافة
+    document.getElementById("tripName").value = "";
+    document.getElementById("tripPrice").value = "";
+    document.getElementById("fuelCost").value = "";
+    document.getElementById("carExpenses").value = "";
+}
+
+function displayTrip(trip) {
+    let tripDiv = document.createElement("div");
+    tripDiv.className = "trip";
+    tripDiv.innerHTML = `
+        <strong>${trip.name}</strong><br>
+        سعر الرحلة: ${trip.price} جنيه<br>
+        مصاريف البنزين: ${trip.fuel} جنيه<br>
+        مصاريف أخرى: ${trip.expenses} جنيه<br>
+        صافي الربح: ${trip.net} جنيه
+    `;
+    document.getElementById("trips").appendChild(tripDiv);
 }
 </script>
 
