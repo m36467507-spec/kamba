@@ -2,54 +2,43 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>🚗 نظام الرحلات المتطور</title>
+<title>🚗 نظام الرحلات الاحترافي</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"/>
-
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
 
 <style>
-
 body{
 margin:0;
 font-family:Arial;
 color:white;
-
-/* خلفية متحركة */
 background: linear-gradient(-45deg,#0f2027,#203a43,#2c5364,#000);
 background-size:400% 400%;
 animation:bgMove 15s ease infinite;
 }
-
 @keyframes bgMove{
 0%{background-position:0% 50%}
 50%{background-position:100% 50%}
 100%{background-position:0% 50%}
 }
-
 header{
 background:#111;
 padding:15px;
 text-align:center;
 font-size:22px;
 }
-
 .container{
 padding:15px;
 max-width:1000px;
 margin:auto;
 }
-
 #map{
 height:400px;
 border-radius:12px;
 margin:15px 0;
 }
-
 button{
-padding:10px 15px;
+padding:10px;
 margin:5px;
 border:none;
 border-radius:8px;
@@ -57,64 +46,46 @@ background:#4CAF50;
 color:white;
 cursor:pointer;
 }
-
-.deleteBtn{
-background:#d32f2f;
+input{
+padding:8px;
+margin:5px;
+border-radius:8px;
+border:none;
 }
-
 .box{
 background:#1e1e1e;
 padding:15px;
 border-radius:12px;
 margin-top:15px;
 }
-
-input,select{
-padding:8px;
-margin:5px;
-border-radius:8px;
-border:none;
-}
-
 </style>
 </head>
-
 <body>
 
 <header>
-🚗 نظام إدارة الرحلات  
+🚗 نظام إدارة الرحلات الاحترافي  
 <br>
-💰 الأرباح: <span id="totalProfit">0</span> جنيه
+💰 إجمالي الأرباح: <span id="totalProfit">0</span> جنيه
 </header>
 
 <div class="container">
 
 <button onclick="getMyLocation()">📍 تحديد موقعي</button>
-<button onclick="startTracking()">🚗 بدء التتبع</button>
-<button onclick="stopTrip()" style="background:#d32f2f">🛑 إنهاء الرحلة</button>
-<button onclick="playQuran()">▶ القرآن</button>
-<button onclick="stopQuran()">⏹ إيقاف القرآن</button>
-
-<h3>🗺 اختر نهاية الرحلة من الخريطة</h3>
+<button onclick="startTrip()">🚗 بدء الرحلة</button>
+<button onclick="endTrip()">🛑 إنهاء الرحلة</button>
+<button onclick="exportCSV()">📄 تصدير Excel</button>
 
 <div id="map"></div>
 
-<select id="carType">
-<option value="6">🚗 صغيرة</option>
-<option value="8" selected>🚙 متوسطة</option>
-<option value="12">🚐 كبيرة</option>
-<option value="15">🛻 نقل خفيف</option>
-</select>
+<h3>⚙ إعدادات الحساب</h3>
 
+<input type="number" id="pricePerKm" placeholder="سعر الكيلو" value="5">
+<input type="number" id="pricePerMinute" placeholder="سعر الدقيقة" value="0.5">
+<input type="number" id="fuelConsumption" placeholder="استهلاك لكل 100 كم" value="8">
 <input type="number" id="fuelPrice" placeholder="سعر البنزين" value="12">
-<input type="number" id="customerMoney" placeholder="الزبون دفع">
 
-<button onclick="saveTrip()">➕ حفظ الرحلة</button>
-
-<div id="tripDetails" class="box"></div>
+<div id="liveData" class="box"></div>
 <div id="tripsList" class="box"></div>
-
-<audio id="quranAudio"></audio>
 
 </div>
 
@@ -122,85 +93,42 @@ border:none;
 
 let map=L.map('map').setView([30.0444,31.2357],7);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-maxZoom:19
-}).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-let startPoint=null;
-let endPoint=null;
-let startMarker=null;
 let userMarker=null;
-let routingControl=null;
-
-let realDistance=0;
-let realTime=0;
-
 let watchID=null;
-let pathLine=null;
-let pathCoords=[];
 let tripActive=false;
 
-/* تحديد الموقع */
+let totalDistance=0;
+let startTime=0;
+let lastPosition=null;
+let polyline=null;
+let path=[];
+
+let trips=JSON.parse(localStorage.getItem("trips"))||[];
 
 function getMyLocation(){
-
-navigator.geolocation.getCurrentPosition(function(p){
-
+navigator.geolocation.getCurrentPosition(p=>{
 let lat=p.coords.latitude;
 let lng=p.coords.longitude;
-
-startPoint=L.latLng(lat,lng);
-
 map.setView([lat,lng],15);
-
-if(startMarker) map.removeLayer(startMarker);
-
-startMarker=L.marker([lat,lng])
-.addTo(map)
-.bindPopup("📍 موقعك");
-
 });
-
 }
 
-/* القرب من الهدف */
+function startTrip(){
 
-function isNearDestination(lat,lng){
-
-if(!endPoint) return false;
-
-let R=6371;
-
-let dLat=(endPoint.lat-lat)*Math.PI/180;
-let dLon=(endPoint.lng-lng)*Math.PI/180;
-
-let a=
-Math.sin(dLat/2)**2+
-Math.cos(lat*Math.PI/180)*
-Math.cos(endPoint.lat*Math.PI/180)*
-Math.sin(dLon/2)**2;
-
-let distance=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-
-return distance*1000 <= 30;
-}
-
-/* التتبع */
-
-function startTracking(){
-
-if(!navigator.geolocation) return;
+if(tripActive) return;
 
 tripActive=true;
+totalDistance=0;
+startTime=Date.now();
+path=[];
 
-watchID=navigator.geolocation.watchPosition(function(pos){
+watchID=navigator.geolocation.watchPosition(pos=>{
 
 let lat=pos.coords.latitude;
 let lng=pos.coords.longitude;
-
 let newPos=L.latLng(lat,lng);
-
-if(!startPoint) startPoint=newPos;
 
 if(!userMarker){
 userMarker=L.marker(newPos).addTo(map);
@@ -210,195 +138,127 @@ userMarker.setLatLng(newPos);
 
 map.setView(newPos,16);
 
-pathCoords.push([lat,lng]);
-
-if(pathLine) map.removeLayer(pathLine);
-
-pathLine=L.polyline(pathCoords,{
-weight:5,
-color:"#00ff88"
-}).addTo(map);
-
-/* حفظ الحالة */
-localStorage.setItem("tripData",JSON.stringify({
-startPoint,
-endPoint,
-pathCoords,
-tripActive
-}));
-
-if(isNearDestination(lat,lng)){
-stopTrip();
-alert("🎯 وصلت إلى المكان");
+if(lastPosition){
+totalDistance+=newPos.distanceTo(lastPosition)/1000;
 }
 
+lastPosition=newPos;
+path.push([lat,lng]);
+
+if(polyline) map.removeLayer(polyline);
+polyline=L.polyline(path,{color:"#00ff88"}).addTo(map);
+
+updateLive();
+
+},{enableHighAccuracy:true});
+
+}
+
+function updateLive(){
+
+let minutes=(Date.now()-startTime)/60000;
+
+let pricePerKm=parseFloat(document.getElementById("pricePerKm").value);
+let pricePerMinute=parseFloat(document.getElementById("pricePerMinute").value);
+let fuelConsumption=parseFloat(document.getElementById("fuelConsumption").value);
+let fuelPrice=parseFloat(document.getElementById("fuelPrice").value);
+
+let rideCost=(totalDistance*pricePerKm)+(minutes*pricePerMinute);
+
+let fuelUsed=(totalDistance/100)*fuelConsumption;
+let fuelCost=fuelUsed*fuelPrice;
+
+let net=rideCost-fuelCost;
+
+document.getElementById("liveData").innerHTML=
+`
+📏 المسافة: ${totalDistance.toFixed(2)} كم<br>
+⏱ الزمن: ${minutes.toFixed(1)} دقيقة<br>
+💵 الأجرة: ${rideCost.toFixed(2)} جنيه<br>
+⛽ تكلفة البنزين: ${fuelCost.toFixed(2)} جنيه<br>
+💰 صافي الربح: ${net.toFixed(2)} جنيه
+`;
+
+}
+
+function endTrip(){
+
+if(!tripActive) return;
+
+navigator.geolocation.clearWatch(watchID);
+
+let minutes=(Date.now()-startTime)/60000;
+
+let pricePerKm=parseFloat(document.getElementById("pricePerKm").value);
+let pricePerMinute=parseFloat(document.getElementById("pricePerMinute").value);
+let fuelConsumption=parseFloat(document.getElementById("fuelConsumption").value);
+let fuelPrice=parseFloat(document.getElementById("fuelPrice").value);
+
+let rideCost=(totalDistance*pricePerKm)+(minutes*pricePerMinute);
+let fuelUsed=(totalDistance/100)*fuelConsumption;
+let fuelCost=fuelUsed*fuelPrice;
+let net=rideCost-fuelCost;
+
+trips.push({
+distance:totalDistance,
+time:minutes,
+income:rideCost,
+fuel:fuelCost,
+net:net,
+date:new Date().toLocaleString()
 });
 
+localStorage.setItem("trips",JSON.stringify(trips));
+
+tripActive=false;
+lastPosition=null;
+
+renderTrips();
+alert("✅ تم إنهاء الرحلة");
+
 }
-
-/* اختيار النهاية */
-
-map.on('click',function(e){
-
-if(!startPoint){
-alert("حدد موقعك أولًا");
-return;
-}
-
-endPoint=e.latlng;
-
-if(routingControl){
-map.removeControl(routingControl);
-}
-
-routingControl=L.Routing.control({
-waypoints:[startPoint,endPoint],
-show:false,
-routeWhileDragging:false,
-lineOptions:{styles:[{color:"#00ff88",weight:6}]}
-}).addTo(map);
-
-routingControl.on('routesfound',function(e){
-
-let route=e.routes[0];
-
-realDistance=route.summary.totalDistance/1000;
-realTime=route.summary.totalTime/60;
-
-});
-
-});
-
-/* الرحلات */
-
-let trips=JSON.parse(localStorage.getItem("trips"))||[];
 
 function renderTrips(){
 
 let html="";
+let total=0;
 
 trips.forEach((t,i)=>{
+total+=t.net;
 html+=`
-<div>
-🚘 رحلة ${i+1}<br>
-📏 المسافة: ${t.distance.toFixed(2)} كم<br>
-⏱ الزمن: ${t.time.toFixed(1)} دقيقة<br>
-💰 الربح: ${t.net.toFixed(2)} جنيه<br>
-<button class="deleteBtn" onclick="deleteTrip(${i})">🗑 حذف</button>
 <hr>
-</div>`;
+📅 ${t.date}<br>
+📏 ${t.distance.toFixed(2)} كم |
+⏱ ${t.time.toFixed(1)} دقيقة<br>
+💰 صافي: ${t.net.toFixed(2)} جنيه
+`;
 });
 
 document.getElementById("tripsList").innerHTML=html;
-
-let total=trips.reduce((s,t)=>s+t.net,0);
 document.getElementById("totalProfit").innerText=total.toFixed(2);
 
 }
 
-/* حفظ الرحلة */
+function exportCSV(){
 
-function saveTrip(){
+let csv="Date,Distance,Time,Income,FuelCost,Net\n";
 
-if(!endPoint) return;
-
-let customerMoney=parseFloat(
-document.getElementById("customerMoney").value)||0;
-
-let fuelPrice=parseFloat(
-document.getElementById("fuelPrice").value)||0;
-
-let consumption=parseFloat(
-document.getElementById("carType").value);
-
-let fuelUsed=(realDistance/100)*consumption;
-let fuelCost=fuelUsed*fuelPrice;
-
-let net=customerMoney-fuelCost;
-
-trips.push({
-distance:realDistance,
-time:realTime,
-net
+trips.forEach(t=>{
+csv+=`${t.date},${t.distance},${t.time},${t.income},${t.fuel},${t.net}\n`;
 });
 
-localStorage.setItem("trips",JSON.stringify(trips));
+let blob=new Blob([csv],{type:"text/csv"});
+let url=URL.createObjectURL(blob);
 
-renderTrips();
-
-}
-
-/* حذف */
-
-function deleteTrip(index){
-
-trips.splice(index,1);
-
-localStorage.setItem("trips",JSON.stringify(trips));
-
-renderTrips();
-
-}
-
-/* إنهاء الرحلة */
-
-function stopTrip(){
-
-tripActive=false;
-
-if(watchID){
-navigator.geolocation.clearWatch(watchID);
-}
-
-localStorage.removeItem("tripData");
-
-alert("تم إنهاء الرحلة");
-
-}
-
-/* القرآن */
-
-function playQuran(){
-
-let audio=document.getElementById("quranAudio");
-
-audio.src="https://stream.radiojar.com/8s5u5tpdtwzuv";
-
-audio.play();
-
-}
-
-function stopQuran(){
-document.getElementById("quranAudio").pause();
-}
-
-/* استرجاع الرحلة بعد الريفرش */
-
-let tripData=JSON.parse(localStorage.getItem("tripData"));
-
-if(tripData){
-
-startPoint=tripData.startPoint;
-endPoint=tripData.endPoint;
-pathCoords=tripData.pathCoords||[];
-tripActive=tripData.tripActive;
-
-startTracking();
-
-if(pathCoords.length){
-
-pathLine=L.polyline(pathCoords,{
-weight:5,
-color:"#00ff88"
-}).addTo(map);
-
-}
+let a=document.createElement("a");
+a.href=url;
+a.download="trips.csv";
+a.click();
 
 }
 
 renderTrips();
 
 </script>
-
 </body>
 </html>
