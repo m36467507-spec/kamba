@@ -88,7 +88,217 @@ margin-top:15px;
 <div id="tripsList" class="box"></div>
 
 </div>
+<script>
 
+let map=L.map('map').setView([30.0444,31.2357],13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+let userMarker=null;
+let watchID=null;
+let tripActive=false;
+let tripPaused=false;
+
+let totalDistance=0;
+let waitingTime=0;
+let startTime=0;
+let lastPosition=null;
+let lastMoveTime=0;
+
+let polyline=L.polyline([],{color:"#00ff88"}).addTo(map);
+
+let trips=JSON.parse(localStorage.getItem("trips"))||[];
+
+/* حفظ الإعدادات تلقائي */
+["pricePerKm","pricePerMinute","fuelConsumption","fuelPrice"].forEach(id=>{
+let el=document.getElementById(id);
+if(localStorage.getItem(id)) el.value=localStorage.getItem(id);
+el.addEventListener("input",()=>localStorage.setItem(id,el.value));
+});
+
+function safeNum(val){
+val=parseFloat(val);
+return isNaN(val)?0:val;
+}
+
+function getMyLocation(){
+navigator.geolocation.getCurrentPosition(p=>{
+map.setView([p.coords.latitude,p.coords.longitude],16);
+});
+}
+
+function startTrip(){
+
+if(tripActive) return;
+
+tripActive=true;
+tripPaused=false;
+totalDistance=0;
+waitingTime=0;
+startTime=Date.now();
+lastMoveTime=Date.now();
+polyline.setLatLngs([]);
+
+watchID=navigator.geolocation.watchPosition(pos=>{
+
+if(tripPaused) return;
+
+let lat=pos.coords.latitude;
+let lng=pos.coords.longitude;
+let speed=(pos.coords.speed||0)*3.6;
+let newPos=L.latLng(lat,lng);
+
+if(!userMarker){
+userMarker=L.marker(newPos).addTo(map);
+}else{
+userMarker.setLatLng(newPos);
+}
+
+map.setView(newPos);
+
+if(lastPosition){
+
+let move=newPos.distanceTo(lastPosition);
+
+if(move>5){ // فلترة اهتزاز أقل من 5 متر
+totalDistance+=move/1000;
+lastMoveTime=Date.now();
+}else{
+if(Date.now()-lastMoveTime>60000){
+waitingTime+=1;
+lastMoveTime=Date.now();
+}
+}
+
+}
+
+lastPosition=newPos;
+polyline.addLatLng(newPos);
+
+updateLive(speed);
+
+},{enableHighAccuracy:true});
+
+}
+
+/* تحديث حي كل ثانية */
+setInterval(()=>{
+if(tripActive && !tripPaused){
+updateLive(0);
+}
+},1000);
+
+function updateLive(speed){
+
+let minutes=(Date.now()-startTime)/60000;
+
+let pricePerKm=safeNum(pricePerKm.value);
+let pricePerMinute=safeNum(pricePerMinute.value);
+let fuelConsumption=safeNum(fuelConsumption.value);
+let fuelPrice=safeNum(fuelPrice.value);
+
+let rideCost=(totalDistance*pricePerKm)+(minutes*pricePerMinute);
+let fuelUsed=(totalDistance/100)*fuelConsumption;
+let fuelCost=fuelUsed*fuelPrice;
+let net=rideCost-fuelCost;
+
+liveData.innerHTML=
+`
+🚀 السرعة: ${speed.toFixed(1)} كم/س<br>
+📏 المسافة: ${totalDistance.toFixed(2)} كم<br>
+⏱ الزمن: ${minutes.toFixed(1)} دقيقة<br>
+🕒 انتظار: ${waitingTime} دقيقة<br>
+💵 الأجرة: ${rideCost.toFixed(2)} جنيه<br>
+⛽ الوقود: ${fuelCost.toFixed(2)} جنيه<br>
+💰 صافي: ${net.toFixed(2)} جنيه
+`;
+
+}
+
+function pauseTrip(){
+if(!tripActive) return;
+tripPaused=!tripPaused;
+alert(tripPaused?"⏸ تم الإيقاف المؤقت":"▶ تم استكمال الرحلة");
+}
+
+function endTrip(){
+
+if(!tripActive) return;
+
+navigator.geolocation.clearWatch(watchID);
+
+let minutes=(Date.now()-startTime)/60000;
+
+let pricePerKm=safeNum(pricePerKm.value);
+let pricePerMinute=safeNum(pricePerMinute.value);
+let fuelConsumption=safeNum(fuelConsumption.value);
+let fuelPrice=safeNum(fuelPrice.value);
+
+let rideCost=(totalDistance*pricePerKm)+(minutes*pricePerMinute);
+let fuelUsed=(totalDistance/100)*fuelConsumption;
+let fuelCost=fuelUsed*fuelPrice;
+let net=rideCost-fuelCost;
+
+trips.push({
+distance:totalDistance,
+time:minutes,
+income:rideCost,
+fuel:fuelCost,
+net:net,
+date:new Date().toLocaleString()
+});
+
+localStorage.setItem("trips",JSON.stringify(trips));
+
+tripActive=false;
+lastPosition=null;
+
+renderTrips();
+alert("✅ تم إنهاء الرحلة");
+
+}
+
+function renderTrips(){
+
+let html="";
+let total=0;
+
+trips.forEach(t=>{
+total+=t.net;
+html+=`
+<hr>
+📅 ${t.date}<br>
+📏 ${t.distance.toFixed(2)} كم |
+⏱ ${t.time.toFixed(1)} دقيقة<br>
+💰 صافي: ${t.net.toFixed(2)} جنيه
+`;
+});
+
+tripsList.innerHTML=html;
+totalProfit.innerText=total.toFixed(2);
+
+}
+
+function exportCSV(){
+
+let csv="Date,Distance,Time,Income,FuelCost,Net\n";
+
+trips.forEach(t=>{
+csv+=`${t.date},${t.distance},${t.time},${t.income},${t.fuel},${t.net}\n`;
+});
+
+let blob=new Blob([csv],{type:"text/csv"});
+let url=URL.createObjectURL(blob);
+
+let a=document.createElement("a");
+a.href=url;
+a.download="trips.csv";
+a.click();
+
+}
+
+renderTrips();
+
+</script>
 <script>
 
 let map=L.map('map').setView([30.0444,31.2357],7);
