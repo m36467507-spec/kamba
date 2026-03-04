@@ -1,7 +1,8 @@
-
+<!DOCTYPE html>
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🚗 نظام الرحلات الاحترافي</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
@@ -12,7 +13,7 @@ body{
 margin:0;
 font-family:Arial;
 color:white;
-background: linear-gradient(-45deg,#0f2027,#203a43,#2c5364,#000);
+background:linear-gradient(-45deg,#0f2027,#203a43,#2c5364,#000);
 background-size:400% 400%;
 animation:bgMove 15s ease infinite;
 }
@@ -25,20 +26,20 @@ header{
 background:#111;
 padding:15px;
 text-align:center;
-font-size:22px;
+font-size:20px;
 }
 .container{
 padding:15px;
-max-width:1000px;
+max-width:1100px;
 margin:auto;
 }
 #map{
-height:400px;
+height:350px;
 border-radius:12px;
 margin:15px 0;
 }
 button{
-padding:10px;
+padding:10px 15px;
 margin:5px;
 border:none;
 border-radius:8px;
@@ -46,17 +47,30 @@ background:#4CAF50;
 color:white;
 cursor:pointer;
 }
+button.danger{
+background:#c62828;
+}
 input{
 padding:8px;
 margin:5px;
 border-radius:8px;
 border:none;
+width:120px;
 }
 .box{
 background:#1e1e1e;
 padding:15px;
 border-radius:12px;
 margin-top:15px;
+}
+label{display:block;margin-top:8px;}
+audio{
+width:100%;
+margin-top:10px;
+border-radius:10px;
+}
+@media(max-width:768px){
+input{width:100%}
 }
 </style>
 </head>
@@ -70,50 +84,64 @@ margin-top:15px;
 
 <div class="container">
 
-<button onclick="getMyLocation()">📍 تحديد موقعي</button>
+<button onclick="getMyLocation()">📍 موقعي</button>
 <button onclick="startTrip()">🚗 بدء الرحلة</button>
 <button onclick="endTrip()">🛑 إنهاء الرحلة</button>
 <button onclick="exportCSV()">📄 تصدير Excel</button>
 
+<br>
+
+<button onclick="playRadio()">📻 تشغيل إذاعة القرآن الكريم</button>
+<button onclick="stopRadio()" class="danger">⏹ إيقاف الإذاعة</button>
+
 <div id="map"></div>
+
+<audio id="quranRadio" controls style="display:none;"></audio>
 
 <h3>⚙ إعدادات الحساب</h3>
 
 <input type="number" id="pricePerKm" placeholder="سعر الكيلو" value="5">
 <input type="number" id="pricePerMinute" placeholder="سعر الدقيقة" value="0.5">
-<input type="number" id="fuelConsumption" placeholder="استهلاك لكل 100 كم" value="8">
+<input type="number" id="fuelConsumption" placeholder="استهلاك/100كم" value="8">
 <input type="number" id="fuelPrice" placeholder="سعر البنزين" value="12">
+
+<h3>🚘 إعدادات إضافية</h3>
+
+<label>
+<input type="checkbox" id="acOn"> ❄ تشغيل التكييف
+</label>
+<input type="number" id="acFuelRate" placeholder="لتر/ساعة" value="1">
+
+<label>
+<input type="checkbox" id="kidsOn"> 🎮 ترفيه الأطفال
+</label>
+<input type="number" id="kidsCostPerHour" placeholder="جنيه/ساعة" value="5">
 
 <div id="liveData" class="box"></div>
 <div id="tripsList" class="box"></div>
 
 </div>
+
 <script>
+
+/* ===== الخريطة ===== */
 
 let map=L.map('map').setView([30.0444,31.2357],13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 let userMarker=null;
-let watchID=null;
-let tripActive=false;
-let tripPaused=false;
-
-let totalDistance=0;
-let waitingTime=0;
-let startTime=0;
-let lastPosition=null;
-let lastMoveTime=0;
-
 let polyline=L.polyline([],{color:"#00ff88"}).addTo(map);
 
+/* ===== متغيرات الرحلة ===== */
+
+let watchID=null;
+let tripActive=false;
+let totalDistance=0;
+let startTime=0;
+let lastPosition=null;
 let trips=JSON.parse(localStorage.getItem("trips"))||[];
 
-/* حفظ الإعدادات تلقائي */
-["pricePerKm","pricePerMinute","fuelConsumption","fuelPrice"].forEach(id=>{
-let el=document.getElementById(id);
-if(localStorage.getItem(id)) el.value=localStorage.getItem(id);
-el.addEventListener("input",()=>localStorage.setItem(id,el.value));
-});
+/* ===== أدوات مساعدة ===== */
 
 function safeNum(val){
 val=parseFloat(val);
@@ -126,213 +154,17 @@ map.setView([p.coords.latitude,p.coords.longitude],16);
 });
 }
 
+/* ===== بدء الرحلة ===== */
+
 function startTrip(){
 
 if(tripActive) return;
 
 tripActive=true;
-tripPaused=false;
 totalDistance=0;
-waitingTime=0;
 startTime=Date.now();
-lastMoveTime=Date.now();
-polyline.setLatLngs([]);
-
-watchID=navigator.geolocation.watchPosition(pos=>{
-
-if(tripPaused) return;
-
-let lat=pos.coords.latitude;
-let lng=pos.coords.longitude;
-let speed=(pos.coords.speed||0)*3.6;
-let newPos=L.latLng(lat,lng);
-
-if(!userMarker){
-userMarker=L.marker(newPos).addTo(map);
-}else{
-userMarker.setLatLng(newPos);
-}
-
-map.setView(newPos);
-
-if(lastPosition){
-
-let move=newPos.distanceTo(lastPosition);
-
-if(move>5){ // فلترة اهتزاز أقل من 5 متر
-totalDistance+=move/1000;
-lastMoveTime=Date.now();
-}else{
-if(Date.now()-lastMoveTime>60000){
-waitingTime+=1;
-lastMoveTime=Date.now();
-}
-}
-
-}
-
-lastPosition=newPos;
-polyline.addLatLng(newPos);
-
-updateLive(speed);
-
-},{enableHighAccuracy:true});
-
-}
-
-/* تحديث حي كل ثانية */
-setInterval(()=>{
-if(tripActive && !tripPaused){
-updateLive(0);
-}
-},1000);
-
-function updateLive(speed){
-
-let minutes=(Date.now()-startTime)/60000;
-
-let pricePerKm=safeNum(pricePerKm.value);
-let pricePerMinute=safeNum(pricePerMinute.value);
-let fuelConsumption=safeNum(fuelConsumption.value);
-let fuelPrice=safeNum(fuelPrice.value);
-
-let rideCost=(totalDistance*pricePerKm)+(minutes*pricePerMinute);
-let fuelUsed=(totalDistance/100)*fuelConsumption;
-let fuelCost=fuelUsed*fuelPrice;
-let net=rideCost-fuelCost;
-
-liveData.innerHTML=
-`
-🚀 السرعة: ${speed.toFixed(1)} كم/س<br>
-📏 المسافة: ${totalDistance.toFixed(2)} كم<br>
-⏱ الزمن: ${minutes.toFixed(1)} دقيقة<br>
-🕒 انتظار: ${waitingTime} دقيقة<br>
-💵 الأجرة: ${rideCost.toFixed(2)} جنيه<br>
-⛽ الوقود: ${fuelCost.toFixed(2)} جنيه<br>
-💰 صافي: ${net.toFixed(2)} جنيه
-`;
-
-}
-
-function pauseTrip(){
-if(!tripActive) return;
-tripPaused=!tripPaused;
-alert(tripPaused?"⏸ تم الإيقاف المؤقت":"▶ تم استكمال الرحلة");
-}
-
-function endTrip(){
-
-if(!tripActive) return;
-
-navigator.geolocation.clearWatch(watchID);
-
-let minutes=(Date.now()-startTime)/60000;
-
-let pricePerKm=safeNum(pricePerKm.value);
-let pricePerMinute=safeNum(pricePerMinute.value);
-let fuelConsumption=safeNum(fuelConsumption.value);
-let fuelPrice=safeNum(fuelPrice.value);
-
-let rideCost=(totalDistance*pricePerKm)+(minutes*pricePerMinute);
-let fuelUsed=(totalDistance/100)*fuelConsumption;
-let fuelCost=fuelUsed*fuelPrice;
-let net=rideCost-fuelCost;
-
-trips.push({
-distance:totalDistance,
-time:minutes,
-income:rideCost,
-fuel:fuelCost,
-net:net,
-date:new Date().toLocaleString()
-});
-
-localStorage.setItem("trips",JSON.stringify(trips));
-
-tripActive=false;
 lastPosition=null;
-
-renderTrips();
-alert("✅ تم إنهاء الرحلة");
-
-}
-
-function renderTrips(){
-
-let html="";
-let total=0;
-
-trips.forEach(t=>{
-total+=t.net;
-html+=`
-<hr>
-📅 ${t.date}<br>
-📏 ${t.distance.toFixed(2)} كم |
-⏱ ${t.time.toFixed(1)} دقيقة<br>
-💰 صافي: ${t.net.toFixed(2)} جنيه
-`;
-});
-
-tripsList.innerHTML=html;
-totalProfit.innerText=total.toFixed(2);
-
-}
-
-function exportCSV(){
-
-let csv="Date,Distance,Time,Income,FuelCost,Net\n";
-
-trips.forEach(t=>{
-csv+=`${t.date},${t.distance},${t.time},${t.income},${t.fuel},${t.net}\n`;
-});
-
-let blob=new Blob([csv],{type:"text/csv"});
-let url=URL.createObjectURL(blob);
-
-let a=document.createElement("a");
-a.href=url;
-a.download="trips.csv";
-a.click();
-
-}
-
-renderTrips();
-
-</script>
-<script>
-
-let map=L.map('map').setView([30.0444,31.2357],7);
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
-let userMarker=null;
-let watchID=null;
-let tripActive=false;
-
-let totalDistance=0;
-let startTime=0;
-let lastPosition=null;
-let polyline=null;
-let path=[];
-
-let trips=JSON.parse(localStorage.getItem("trips"))||[];
-
-function getMyLocation(){
-navigator.geolocation.getCurrentPosition(p=>{
-let lat=p.coords.latitude;
-let lng=p.coords.longitude;
-map.setView([lat,lng],15);
-});
-}
-
-function startTrip(){
-
-if(tripActive) return;
-
-tripActive=true;
-totalDistance=0;
-startTime=Date.now();
-path=[];
+polyline.setLatLngs([]);
 
 watchID=navigator.geolocation.watchPosition(pos=>{
 
@@ -349,47 +181,67 @@ userMarker.setLatLng(newPos);
 map.setView(newPos,16);
 
 if(lastPosition){
-totalDistance+=newPos.distanceTo(lastPosition)/1000;
+let move=newPos.distanceTo(lastPosition);
+if(move>5) totalDistance+=move/1000;
 }
 
 lastPosition=newPos;
-path.push([lat,lng]);
+polyline.addLatLng(newPos);
 
-if(polyline) map.removeLayer(polyline);
-polyline=L.polyline(path,{color:"#00ff88"}).addTo(map);
-
-updateLive();
+updateLive(pos.coords.speed?pos.coords.speed*3.6:0);
 
 },{enableHighAccuracy:true});
 
 }
 
-function updateLive(){
+/* ===== تحديث حي ===== */
+
+function updateLive(speed=0){
+
+if(!tripActive) return;
 
 let minutes=(Date.now()-startTime)/60000;
+let hours=minutes/60;
 
-let pricePerKm=parseFloat(document.getElementById("pricePerKm").value);
-let pricePerMinute=parseFloat(document.getElementById("pricePerMinute").value);
-let fuelConsumption=parseFloat(document.getElementById("fuelConsumption").value);
-let fuelPrice=parseFloat(document.getElementById("fuelPrice").value);
+let pricePerKm=safeNum(document.getElementById("pricePerKm").value);
+let pricePerMinute=safeNum(document.getElementById("pricePerMinute").value);
+let fuelConsumption=safeNum(document.getElementById("fuelConsumption").value);
+let fuelPrice=safeNum(document.getElementById("fuelPrice").value);
+
+let acOn=document.getElementById("acOn").checked;
+let acFuelRate=safeNum(document.getElementById("acFuelRate").value);
+
+let kidsOn=document.getElementById("kidsOn").checked;
+let kidsCostPerHour=safeNum(document.getElementById("kidsCostPerHour").value);
 
 let rideCost=(totalDistance*pricePerKm)+(minutes*pricePerMinute);
 
-let fuelUsed=(totalDistance/100)*fuelConsumption;
-let fuelCost=fuelUsed*fuelPrice;
+let baseFuelUsed=(totalDistance/100)*fuelConsumption;
+let acFuelUsed=acOn?acFuelRate*hours:0;
+let fuelCost=(baseFuelUsed+acFuelUsed)*fuelPrice;
 
-let net=rideCost-fuelCost;
+let kidsCost=kidsOn?kidsCostPerHour*hours:0;
+
+let net=rideCost-fuelCost-kidsCost;
 
 document.getElementById("liveData").innerHTML=
 `
+🚀 السرعة: ${speed.toFixed(1)} كم/س<br>
 📏 المسافة: ${totalDistance.toFixed(2)} كم<br>
-⏱ الزمن: ${minutes.toFixed(1)} دقيقة<br>
+⏱ الزمن: ${minutes.toFixed(1)} دقيقة<br><hr>
+
 💵 الأجرة: ${rideCost.toFixed(2)} جنيه<br>
-⛽ تكلفة البنزين: ${fuelCost.toFixed(2)} جنيه<br>
+⛽ وقود أساسي: ${(baseFuelUsed*fuelPrice).toFixed(2)} جنيه<br>
+❄ تكلفة التكييف: ${(acFuelUsed*fuelPrice).toFixed(2)} جنيه<br>
+🎮 ترفيه الأطفال: ${kidsCost.toFixed(2)} جنيه<br><hr>
+
 💰 صافي الربح: ${net.toFixed(2)} جنيه
 `;
-
 }
+
+setInterval(()=>updateLive(),1000);
+
+/* ===== إنهاء الرحلة ===== */
 
 function endTrip(){
 
@@ -398,22 +250,32 @@ if(!tripActive) return;
 navigator.geolocation.clearWatch(watchID);
 
 let minutes=(Date.now()-startTime)/60000;
+let hours=minutes/60;
 
-let pricePerKm=parseFloat(document.getElementById("pricePerKm").value);
-let pricePerMinute=parseFloat(document.getElementById("pricePerMinute").value);
-let fuelConsumption=parseFloat(document.getElementById("fuelConsumption").value);
-let fuelPrice=parseFloat(document.getElementById("fuelPrice").value);
+let pricePerKm=safeNum(document.getElementById("pricePerKm").value);
+let pricePerMinute=safeNum(document.getElementById("pricePerMinute").value);
+let fuelConsumption=safeNum(document.getElementById("fuelConsumption").value);
+let fuelPrice=safeNum(document.getElementById("fuelPrice").value);
+
+let acOn=document.getElementById("acOn").checked;
+let acFuelRate=safeNum(document.getElementById("acFuelRate").value);
+let kidsOn=document.getElementById("kidsOn").checked;
+let kidsCostPerHour=safeNum(document.getElementById("kidsCostPerHour").value);
 
 let rideCost=(totalDistance*pricePerKm)+(minutes*pricePerMinute);
-let fuelUsed=(totalDistance/100)*fuelConsumption;
-let fuelCost=fuelUsed*fuelPrice;
-let net=rideCost-fuelCost;
+let baseFuelUsed=(totalDistance/100)*fuelConsumption;
+let acFuelUsed=acOn?acFuelRate*hours:0;
+let fuelCost=(baseFuelUsed+acFuelUsed)*fuelPrice;
+let kidsCost=kidsOn?kidsCostPerHour*hours:0;
+let net=rideCost-fuelCost-kidsCost;
 
 trips.push({
 distance:totalDistance,
 time:minutes,
 income:rideCost,
 fuel:fuelCost,
+ac:acFuelUsed*fuelPrice,
+kids:kidsCost,
 net:net,
 date:new Date().toLocaleString()
 });
@@ -421,19 +283,19 @@ date:new Date().toLocaleString()
 localStorage.setItem("trips",JSON.stringify(trips));
 
 tripActive=false;
-lastPosition=null;
-
 renderTrips();
 alert("✅ تم إنهاء الرحلة");
 
 }
+
+/* ===== عرض الرحلات ===== */
 
 function renderTrips(){
 
 let html="";
 let total=0;
 
-trips.forEach((t,i)=>{
+trips.forEach(t=>{
 total+=t.net;
 html+=`
 <hr>
@@ -449,17 +311,18 @@ document.getElementById("totalProfit").innerText=total.toFixed(2);
 
 }
 
+/* ===== تصدير ===== */
+
 function exportCSV(){
 
-let csv="Date,Distance,Time,Income,FuelCost,Net\n";
+let csv="Date,Distance,Time,Income,Fuel,AC,Kids,Net\n";
 
 trips.forEach(t=>{
-csv+=`${t.date},${t.distance},${t.time},${t.income},${t.fuel},${t.net}\n`;
+csv+=`${t.date},${t.distance},${t.time},${t.income},${t.fuel},${t.ac},${t.kids},${t.net}\n`;
 });
 
 let blob=new Blob([csv],{type:"text/csv"});
 let url=URL.createObjectURL(blob);
-
 let a=document.createElement("a");
 a.href=url;
 a.download="trips.csv";
@@ -467,8 +330,25 @@ a.click();
 
 }
 
+/* ===== 📻 إذاعة القرآن الكريم ===== */
+
+function playRadio(){
+let radio=document.getElementById("quranRadio");
+radio.src="https://stream.radiojar.com/8s5u5tpdtwzuv";
+radio.style.display="block";
+radio.play();
+}
+
+function stopRadio(){
+let radio=document.getElementById("quranRadio");
+radio.pause();
+radio.currentTime=0;
+radio.style.display="none";
+}
+
 renderTrips();
 
 </script>
+
 </body>
 </html>
