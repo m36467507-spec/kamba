@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🚗 نظام الرحلات الاحترافي</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<style>
+body{
+margin:0;
+font-family:Arial;
+color:white;
+background: linear-gradient(-45deg,#0f2027,#203a43,#2c5364,#000);
+background-size:400% 400%;
+animation:bgMove 15s ease infinite;
+}
+@keyframes bgMove{
+0%{background-position:0% 50%}
+50%{background-position:100% 50%}
+100%{background-position:0% 50%}
+}
+header{
+background:#111;
+padding:15px;
+text-align:center;
+font-size:22px;
+}
+.container{
+padding:15px;
+max-width:1000px;
+margin:auto;
+}
+#map{
+height:400px;
+border-radius:12px;
+margin:15px 0;
+}
+button{
+padding:10px;
+margin:5px;
+border:none;
+border-radius:8px;
+background:#4CAF50;
+color:white;
+cursor:pointer;
+}
+input{
+padding:8px;
+margin:5px;
+border-radius:8px;
+border:none;
+}
+.box{
+background:#1e1e1e;
+padding:15px;
+border-radius:12px;
+margin-top:15px;
+}
+</style>
+</head>
+<body>
+
+<header>
+🚗 نظام إدارة الرحلات  
+<br>
+💰 إجمالي الأرباح: <span id="totalProfit">0</span> جنيه
+</header>
+
+<div class="container">
+
+<button onclick="getMyLocation()">📍 تحديد موقعي</button>
+<button onclick="startTrip()">🚗 بدء الرحلة</button>
+<button onclick="endTrip()">🛑 إنهاء الرحلة</button>
+
+<div id="map"></div>
+
+<h3>⚙ إعدادات الحساب</h3>
+
+<input type="number" id="pricePerKm" value="5" placeholder="سعر الكيلو">
+<input type="number" id="pricePerMinute" value="0.5" placeholder="سعر الدقيقة">
+<input type="number" id="fuelConsumption" value="8" placeholder="استهلاك لكل 100 كم">
+<input type="number" id="fuelPrice" value="12" placeholder="سعر البنزين">
+
+<div id="liveData" class="box"></div>
+<div id="tripsList" class="box"></div>
+
+</div>
+
+<script>
+
+let map=L.map('map').setView([30.0444,31.2357],7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+let userMarker=null;
+let watchID=null;
+let tripActive=false;
+let totalDistance=0;
+let startTime=0;
+let lastPosition=null;
+let polyline=null;
+let path=[];
+let trips=JSON.parse(localStorage.getItem("trips"))||[];
+
+function getMyLocation(){
+navigator.geolocation.getCurrentPosition(p=>{
+let lat=p.coords.latitude;
+let lng=p.coords.longitude;
+map.setView([lat,lng],15);
+});
+}
+
+function startTrip(){
+if(tripActive) return;
+tripActive=true;
+totalDistance=0;
+startTime=Date.now();
+path=[];
+watchID=navigator.geolocation.watchPosition(pos=>{
+let lat=pos.coords.latitude;
+let lng=pos.coords.longitude;
+let newPos=L.latLng(lat,lng);
+if(!userMarker){
+userMarker=L.marker(newPos).addTo(map);
+}else{
+userMarker.setLatLng(newPos);
+}
+map.setView(newPos,16);
+if(lastPosition){
+totalDistance+=newPos.distanceTo(lastPosition)/1000;
+}
+lastPosition=newPos;
+path.push([lat,lng]);
+if(polyline) map.removeLayer(polyline);
+polyline=L.polyline(path,{color:"#00ff88"}).addTo(map);
+updateLive();
+},{enableHighAccuracy:true});
+}
+
+function updateLive(){
+let minutes=(Date.now()-startTime)/60000;
+let pricePerKm=parseFloat(pricePerKm.value);
+let pricePerMinute=parseFloat(pricePerMinute.value);
+let fuelConsumption=parseFloat(fuelConsumption.value);
+let fuelPrice=parseFloat(fuelPrice.value);
+let rideCost=(totalDistance*pricePerKm)+(minutes*pricePerMinute);
+let fuelUsed=(totalDistance/100)*fuelConsumption;
+let fuelCost=fuelUsed*fuelPrice;
+let net=rideCost-fuelCost;
+liveData.innerHTML=`
+📏 ${totalDistance.toFixed(2)} كم<br>
+⏱ ${minutes.toFixed(1)} دقيقة<br>
+💵 ${rideCost.toFixed(2)} جنيه<br>
+⛽ ${fuelCost.toFixed(2)} جنيه<br>
+💰 ${net.toFixed(2)} جنيه`;
+}
+
+function endTrip(){
+if(!tripActive) return;
+navigator.geolocation.clearWatch(watchID);
+tripActive=false;
+alert("✅ تم إنهاء الرحلة");
+}
+
+if("serviceWorker" in navigator){
+navigator.serviceWorker.register("sw.js");
+}
+
+</script>
+</body>
+</html>
